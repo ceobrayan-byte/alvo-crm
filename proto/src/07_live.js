@@ -12,7 +12,28 @@ const cap1=s=>{s=String(s||'').toLowerCase();return s.charAt(0).toUpperCase()+s.
 let sb=null;
 
 /* ----- utilitários ----- */
-const rpc=async(fn,args)=>{const{data,error}=await sb.rpc(fn,args||{});if(error)throw error;return data};
+const rpcRaw=async(fn,args)=>{const{data,error}=await sb.rpc(fn,args||{});if(error)throw error;return data};
+/* ----- "Ver como": o dono/administrador vê o CRM exatamente como um membro da equipe vê (somente leitura) ----- */
+const PV={on:false,id:null,name:'',roleKey:null,scope:null,perms:{},realMe:null,team:{}};
+const PV_READ=new Set(['crm_boot','crm_me','crm_team','crm_leads_board','crm_cold_list','crm_customers_list','crm_cases_list','crm_fin_list']);
+const pvVis=o=>o==null||o===PV.id||PV.scope==='ORGANIZACAO'||(PV.scope==='EQUIPE'&&PV.team[PV.id]&&PV.team[o]===PV.team[PV.id]);
+function pvFilter(fn,d){
+  const office=(PV.perms.suporte||0)>=3,admin=(PV.perms.equipe||0)>=3;
+  if(fn==='crm_boot'&&d&&d.me){d=Object.assign({},d);d.me=Object.assign({},d.me,{role:PV.roleKey,data_scope:PV.scope,permissions:PV.perms});
+    d.leads=(d.leads||[]).filter(l=>pvVis(l.owner_user_id));d.deals=(d.deals||[]).filter(x=>pvVis(x.owner_user_id));d.tasks=(d.tasks||[]).filter(t=>pvVis(t.assigned_user_id));
+    if(!(PV.perms.equipe>=1))d.invites=[];return d}
+  if(fn==='crm_leads_board')return(d||[]).filter(l=>l.stage==='Geladeira'||pvVis(l.owner_user_id));
+  if(fn==='crm_cases_list')return office?d:(d||[]).filter(c=>pvVis(c.seller_user_id));
+  if(fn==='crm_customers_list'){if(office)return d;return(d||[]).map(c=>Object.assign({},c,{cases:(c.cases||[]).filter(k=>pvVis(k.seller_user_id))})).filter(c=>pvVis(c.owner_user_id)||c.cases.length)}
+  if(fn==='crm_fin_list'&&d){if(office)return Object.assign({},d,{admin,agreements:admin?d.agreements:[]});
+    const cases=(d.cases||[]).filter(c=>pvVis(c.seller_user_id)),ids=new Set(cases.map(c=>c.id));
+    return Object.assign({},d,{office:false,admin,cases,events:(d.events||[]).filter(e=>e.kind==='VENDEDOR'&&pvVis(e.seller_user_id)),installments:(d.installments||[]).filter(i=>ids.has(i.case_id)),agreements:admin?d.agreements:[]})}
+  return d;
+}
+const rpc=async(fn,args)=>{
+  if(PV.on&&!PV_READ.has(fn))throw Object.assign(new Error(`Modo "Ver como": você está vendo o CRM como ${PV.name}. Nada é gravado nesse modo.`),{code:'PV'});
+  const d=await rpcRaw(fn,args);return PV.on?pvFilter(fn,d):d;
+};
 function errMsg(e){
   const m=(e&&e.message)||String(e);
   if(/Failed to fetch|NetworkError|Load failed/i.test(m))return'Sem conexão com o servidor. Verifique a internet e tente de novo. Se persistir, o banco pode estar pausado por inatividade.';
@@ -132,6 +153,7 @@ async function loadOrg(orgId,me,b){
   /* uma só chamada (crm_boot) traz tudo: antes eram ~14 requisições em 4 rodadas */
   if(!b)b=await rpc('crm_boot',{p_org:orgId});
   if(b.me)me=b.me;
+  LS.roles=b.roles||[];LS.permRows=b.perms||[];LS.team=b.team||[];
   const org=b.org||{},perm=b.perms||[],teams=b.teams||[],pipes=b.pipes||[],stages=b.stages||[],team=b.team||[];
   const leads=b.leads||[],deals=b.deals||[],tasks=b.tasks||[],xp=b.xp||[],invs=b.invites||[];
   /* funis */
@@ -199,7 +221,7 @@ async function enter(){
     if(tok){clearInvite();try{await rpc('crm_accept_invitation',{p_token:tok});LS.notice='Convite aceito. Bem-vindo(a)!'}catch(e){LS.notice=errMsg(e)}}
     const boot0=await rpc('crm_boot',{p_org:null});me=boot0.me;
     if(!me.linked||!me.active_org){showUnlinked(LS.notice&&!/aceito/.test(LS.notice)?LS.notice:'');LS.notice=null;return}
-    ME=me.user.id;LS.orgList=me.organizations;
+    ME=me.user.id;LS.orgList=me.organizations;LS.myRole=me.role;
     S.orgs={};me.organizations.forEach(x=>S.orgs[x.id]=stub(x));
     S.orgs[me.active_org]=await loadOrg(me.active_org,me,boot0);S.orgId=me.active_org;
   }catch(e){return showFatal(e)}
@@ -319,7 +341,7 @@ ACT['set-goals']=()=>{
 ACT.org=async el=>{
   const id=el.dataset.id;S.ui.pop=null;if(id===S.orgId){renderPops();return}
   await guarded(async()=>{
-    const b=await rpc('crm_boot',{p_org:id});S.orgs[id]=await loadOrg(id,b.me,b);S.orgId=id;LS.at=Date.now();
+    const b=await rpc('crm_boot',{p_org:id});if(!PV.on)LS.myRole=b.me.role;S.orgs[id]=await loadOrg(id,b.me,b);S.orgId=id;LS.at=Date.now();
     resetViewState();if(S.ui.drawer||S.ui.modal)closeAll();if(LV(S.view)===0)S.view='visao-geral';
     toast(`Organização: <b>${esc(O().name)}</b> · seu perfil: ${esc(ROLE())}`,{icon:'building-2'});refresh(true);
   });
@@ -332,6 +354,46 @@ ACT.logout=()=>{S.ui.pop=null;renderPops();signOut()};
 ].forEach(k=>{ACT[k]=()=>soon()});
 ['dealowner','dealtemp','bulkassign','bulktag','urole','uteam','ucargo','tstatus','convassign','cfg-mode','cfg-pipe','cfg-away'].forEach(k=>{CHG[k]=el=>{soon();refresh()}});
 ['msg','ticket-reply','perfil'].forEach(k=>{FORMS[k]=()=>soon()});
+
+const PV_OK=()=>['PROPRIETARIO','ADMINISTRADOR','GESTOR'].includes(PV.on?PV.realRole:LS.myRole);
+function pvMenu(){
+  if(!PV_OK())return'';
+  const list=(LS.team||[]).filter(m=>m.id!==(PV.on?PV.realMe:ME)&&m.status==='ATIVO');
+  return`<div style="border-top:1px solid var(--line);margin-top:6px;padding-top:4px"><h4>Ver como</h4>
+   ${PV.on?`<button class="pi on" data-act="pv-stop">${ic('eye-off')}<span class="sm"><b>Sair da visualização</b><div class="xs muted">voltar para a sua visão</div></span></button>`:''}
+   ${list.map(m=>`<button class="pi ${PV.on&&PV.id===m.id?'on':''}" data-act="pv-start" data-id="${esc(m.id)}">${avN(m.name,30)}<span class="grow" style="min-width:0"><span class="sm">${esc(m.name)}</span><div class="xs muted">${esc(RK[m.role]||m.role)}${m.team?' · '+esc(m.team):''}</div></span>${ic('eye')}</button>`).join('')||'<div class="xs muted" style="padding:8px 10px">Sem outros membros ativos.</div>'}
+   <div class="xs muted" style="padding:6px 10px 8px">Mostra menu, telas e dados como a pessoa vê. Somente leitura.</div></div>`;
+}
+window.pvMenu=pvMenu;
+function pvBar(){
+  let b=$('#pvbar');const main=$('.main');if(!main)return;
+  if(!PV.on){if(b)b.remove();return}
+  if(!b){b=document.createElement('div');b.id='pvbar';main.insertBefore(b,main.firstChild)}
+  b.innerHTML=`${ic('eye')}<span class="grow">Você está vendo o CRM como <b>${esc(PV.name)}</b> (${esc(RK[PV.roleKey]||PV.roleKey)}). Somente leitura.</span><button class="btn sm" data-act="pv-stop">Sair da visualização</button>`;icons();
+}
+function pvReset(){try{FL.loaded=false;FL.orgFor=null}catch(e){}try{FC.loaded=false;FC.orgFor=null}catch(e){}try{FIN.d=null;FIN.orgFor=null;FIN.tab=null}catch(e){}}
+async function pvApply(){
+  pvReset();S.ui.pop=null;closeAll();
+  await reload();
+  if(LV(S.view)===0)S.view='visao-geral';
+  resetViewState();refresh(true);pvBar();
+  setTimeout(()=>{try{flLoad();fcLoad();finLoad()}catch(e){}},30);
+}
+ACT['pv-start']=async el=>{
+  if(!PV_OK())return;
+  const m=(LS.team||[]).find(x=>x.id===el.dataset.id);if(!m)return;
+  if(!PV.on){PV.realMe=ME;PV.realRole=LS.myRole}
+  const scope=((LS.roles||[]).find(r=>r.role_key===m.role)||{}).data_scope||'PROPRIO';
+  const perms={};(LS.permRows||[]).filter(r=>r.role_key===m.role).forEach(r=>perms[r.module]=r.level);
+  PV.team={};(LS.team||[]).forEach(x=>PV.team[x.id]=x.team_id||null);
+  Object.assign(PV,{on:true,id:m.id,name:m.name,roleKey:m.role,scope,perms});ME=m.id;
+  await guarded(pvApply);
+  toast(`Vendo como <b>${esc(m.name)}</b>. Para voltar: "Sair da visualização".`,{icon:'eye',ms:5000});
+};
+ACT['pv-stop']=async()=>{
+  if(!PV.on)return;ME=PV.realMe;PV.on=false;PV.id=null;
+  await guarded(pvApply);toast('De volta à sua visão.',{icon:'eye-off'});
+};
 
 /* ----- início ----- */
 /* os módulos Leads, Clientes e Financeiro (06z_*) usam estas funções: precisam estar visíveis fora deste bloco */

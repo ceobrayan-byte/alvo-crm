@@ -48,11 +48,11 @@ function finRegras(){
 VIEWS['financeiro']=()=>{
   finLoad();const d=FIN.d,o=O();
   if(!d)return`<div class="pg"><div class="pg-h"><div class="grow"><div class="eyebrow">${esc(o.name)}</div><h2>Financeiro Comercial</h2></div></div><div class="empty">Carregando…</div></div>`;
-  const tabs=d.office?[['alvo','Receita ALVO'],['vend','Repasses a vendedores'],['mens','Mensalidades'],['regras','Regras e acordos']]:[['vend','Minhas comissões'],['mens','Mensalidades dos clientes'],['regras','Regras']];
+  const tabs=d.office?[['alvo','Receita ALVO'],['vend','Repasses a vendedores'],['mens','Mensalidades'],['regras','Regras e acordos']]:[['vend','Minhas comissões']];
   if(!tabs.find(t=>t[0]===FIN.tab))FIN.tab=tabs[0][0];
   const A=d.events.filter(e=>e.kind==='ALVO'),V=d.events.filter(e=>e.kind==='VENDEDOR');
   const kp=d.office?[['ALVO a receber',fBRL(fSum(A.filter(e=>e.status==='Prevista'),e=>e.amount))],['ALVO recebido',fBRL(fSum(A.filter(e=>e.status==='Recebida'),e=>e.actual_amount))],['Vendedores a pagar',fBRL(fSum(V.filter(e=>e.status==='Prevista'),e=>e.amount))],['Vendedores pago',fBRL(fSum(V.filter(e=>e.status==='Paga'),e=>e.actual_amount))]]
-   :[['A receber',fBRL(fSum(V.filter(e=>e.status==='Prevista'),e=>e.amount))],['Já pago',fBRL(fSum(V.filter(e=>e.status==='Paga'),e=>e.actual_amount))],['Vendas efetivadas',d.cases.length],['Eventos em aberto',V.filter(e=>e.status==='Prevista').length]];
+   :[['Previsto para receber',fBRL(fSum(V.filter(e=>e.status==='Prevista'),e=>e.amount))],['Já recebido',fBRL(fSum(V.filter(e=>e.status==='Paga'),e=>e.actual_amount))],['Vendas efetivadas',d.cases.length],['Próximo mês',fBRL(fSum(V.filter(e=>e.status==='Prevista'&&e.due_month&&e.due_month.slice(0,7)===new Date(new Date().getFullYear(),new Date().getMonth()+1,1).toISOString().slice(0,7)),e=>e.amount))]];
   return`<div class="pg"><div class="pg-h"><div class="grow"><div class="eyebrow">${esc(o.name)}</div><h2>${d.office?'Financeiro Comercial':'Minhas comissões'}</h2></div><button class="btn" data-act="fin-reload">${ic('refresh-cw')}Atualizar</button></div>
    <div class="g" style="grid-template-columns:repeat(4,1fr)">${kp.map(([a,b])=>`<div class="card"><div class="xs muted">${a}</div><div class="disp" style="font-size:26px">${b}</div></div>`).join('')}</div>
    <div class="row" role="tablist">${tabs.map(t=>`<button class="btn sm ${FIN.tab===t[0]?'pri':''}" role="tab" data-act="fin-tab" data-id="${t[0]}">${t[1]}</button>`).join('')}</div>
