@@ -82,7 +82,7 @@ function leadDrawer(id){
   <div class="dr-f"><button class="btn" data-act="lead-edit" data-id="${l.id}">${ic('pencil')}Editar informações</button>${sold?'':`<button class="btn pri" data-act="lead-sell" data-id="${l.id}">${ic('badge-check')}Efetivar venda</button>`}</div>`;
 }
 ACT['lead-open']=el=>{if(!FL.leads.find(x=>x.id===el.dataset.id))return;openDrawer(()=>leadDrawer(el.dataset.id))};
-ACT['lead-sell']=async el=>{await guarded(async()=>{flReplace(await rpc('crm_lead_close_sale',{p_org:S.orgId,p_id:el.dataset.id}));toast('Venda efetivada. Caso criado em Suporte / Documentação.',{icon:'badge-check'})});refresh();redrawDrawer()};
+ACT['lead-sell']=async el=>{await guarded(async()=>{{const r=await rpc('crm_lead_close_sale',{p_org:S.orgId,p_id:el.dataset.id});flReplace(r.lead);FC.loaded=false}toast('Venda efetivada. Caso criado em Suporte / Documentação.',{icon:'badge-check'})});refresh();redrawDrawer()};
 function leadForm(l){
   l=l||{};
   const v=k=>esc(l[k]==null?'':l[k]);
