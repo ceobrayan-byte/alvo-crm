@@ -1,0 +1,32 @@
+-- 12: Migração dos dados reais do Floot (ALVO — Plataforma Comercial) para o Supabase, feita em 18/11/2026.
+-- Os dados de clientes NÃO estão neste arquivo (o repositório é público). Aqui fica só o registro do que foi feito.
+--
+-- Origem (Floot): support_cases (38), sales (24, todas EFETIVADA), commission_ledger (267), client_installments (30 pagas).
+-- Destino (Supabase):
+--   op_cases            38 casos, com o mesmo id do Floot (SUP-0000xx) e uma linha de histórico "Migrado do Floot".
+--   clients             23 clientes, criados por _client_for (deduplica por CPF/CNPJ e telefone).
+--   fin_installments    30 mensalidades confirmadas.
+--   fin_events VENDEDOR 267 lançamentos com os valores exatos do Floot (previsto, pago, data da baixa).
+--   fin_events ALVO     gerados pelo motor (_fin_generate) + 21 recebimentos do Floot aplicados como "Recebida".
+--   floot_import_ledger cópia dos 267 lançamentos do Floot, para auditoria (RLS ligado, sem acesso pelo app).
+--
+-- Conferência com o Floot: total previsto R$ 54.489,98 · pago a vendedores R$ 7.334,66 · recebido pela ALVO R$ 22.808,43.
+--
+-- Usuários (ids diferentes entre os sistemas; casados por e-mail/nome):
+--   Floot USR-000003 Neiva     -> USR-000006     Floot USR-000004 Eduardo  -> USR-000008
+--   Floot USR-000005 Mesley    -> USR-000005     Floot USR-000006 Conrado  -> USR-000009
+--   Floot USR-000008 Grazielly -> USR-000004     Floot "Escritorio" e "Vanessa" (sem conta no Supabase) -> USR-000001
+--
+-- Situações: "Em correção" e "Em formalização" do Floot viraram "Em análise" (registrado no histórico).
+-- Casos "Efetivado" no Floot sem venda/comissão (SUP-000038, 039, 040, 060) entraram sem regra:
+--   aparecem em Financeiro > Regras como "venda efetivada sem regra" para decidir.
+--
+-- Acordos: USR-000001 com 0% em Canopus, CNP, Porto e Servopa, para que vendas do Escritório/Proprietário
+-- não gerem repasse se o motor recalcular (igual ao Floot).
+--
+-- Divergências entre o motor e o Floot (mantidos os valores do Floot):
+--   SUP-000048 (Servopa)  Floot R$ 1.600 em 11 eventos  x motor R$ 2.400 em 7 eventos
+--   SUP-000033/035/036 (Canopus R50) Floot R$ 8.416,67 x motor R$ 8.000 (Parcela 1 prevista a R$ 1.250, paga R$ 833,33)
+--   SUP-000029 (Escritório) Floot R$ 223,96 de repasse x motor R$ 0
+-- Atenção: se a regra, o crédito, a data ou a situação desses casos forem alterados, o motor recalcula
+-- os lançamentos ainda "Prevista" pelas regras do catálogo (baixas já feitas são preservadas).

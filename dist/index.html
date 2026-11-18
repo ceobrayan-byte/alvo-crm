@@ -1563,7 +1563,7 @@ async function fcLoad(force){
   }catch(e){fail(e)}
   finally{FC.loading=false;if(S.view==='clientes'||S.view==='suporte')refresh()}
 }
-const fcUser=id=>id?esc(user(id)?.name||'—'):'—';
+const fcUser=id=>{if(!id)return'—';const u=O().users.find(x=>x.id===id);return esc(u?u.name:(/^USR-/.test(id)?'—':id))};
 const fcDone=c=>c.status==='Efetivado'&&c.accepted&&c.first_payment==='Pago';
 const fcStatusBd=c=>`<span class="bd ${c.status==='Efetivado'?'ok':c.status==='Documentação pendente'?'warn':'mute'}">${esc(c.status)}</span>`;
 const fcDate=d=>d?String(d).slice(0,10).split('-').reverse().join('/'):'—';
