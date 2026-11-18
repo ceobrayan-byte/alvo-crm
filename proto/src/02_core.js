@@ -10,7 +10,7 @@ const deal=id=>O().deals.find(d=>d.id===id);
 const conv=id=>O().convs.find(c=>c.id===id);
 const inst=id=>O().inst.find(i=>i.id===id);
 const ROLE=()=>user(ME).role;
-const LV=mod=>{mod=({'kanban':'contatos','leads-frios':'contatos','clientes':'contatos'})[mod]||mod;const i=MODS.findIndex(m=>m[0]===mod);return i<0?3:(O().perms[ROLE()][i]||0)};
+const LV=mod=>{mod=({'kanban':'contatos','leads-frios':'contatos','clientes':'contatos','financeiro':'contatos'})[mod]||mod;const i=MODS.findIndex(m=>m[0]===mod);return i<0?3:(O().perms[ROLE()][i]||0)};
 const $=(s,r=document)=>r.querySelector(s), $$=(s,r=document)=>[...r.querySelectorAll(s)];
 const sum=a=>a.reduce((x,y)=>x+y,0);
 const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));

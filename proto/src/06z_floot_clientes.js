@@ -69,7 +69,7 @@ function caseDrawer(id){
 }
 ACT['case-open']=el=>openDrawer(()=>caseDrawer(el.dataset.id));
 const caseFind=id=>FC.cases.find(x=>x.id===id)||FC.custs.flatMap(c=>c.cases||[]).find(x=>x.id===id);
-ACT['case-edit']=el=>{const k=caseFind(el.dataset.id);if(!k)return;const v=x=>esc(k[x]==null?'':k[x]);
+ACT['case-edit']=async el=>{const k=caseFind(el.dataset.id);if(!k)return;await finLoad();const v=x=>esc(k[x]==null?'':k[x]);
   dialog({title:'Editar operação',sub:k.client_name,submit:'Salvar',wide:true,body:`<div class="g" style="grid-template-columns:1fr 1fr">
    <label class="fld">Situação<select class="in" name="status">${CSTAT.map(s=>`<option ${k.status===s?'selected':''}>${s}</option>`).join('')}</select></label>
    <label class="fld">Documentação<select class="in" name="docs">${['Pendente','Completo'].map(s=>`<option ${k.docs===s?'selected':''}>${s}</option>`).join('')}</select></label>
@@ -78,11 +78,12 @@ ACT['case-edit']=el=>{const k=caseFind(el.dataset.id);if(!k)return;const v=x=>es
    <label class="fld">Administradora<input class="in" name="admin" value="${v('admin')}"></label><label class="fld">Contrato<input class="in" name="contract" value="${v('contract')}"></label>
    <label class="fld">Grupo<input class="in" name="grp" value="${v('grp')}"></label><label class="fld">Cota<input class="in" name="quota" value="${v('quota')}"></label>
    <label class="fld">Crédito (R$)<input class="in num" name="credit" type="number" min="0" step="100" value="${v('credit')}"></label><label class="fld">Prazo (meses)<input class="in num" name="term" type="number" min="1" step="1" value="${v('term')}"></label>
-   <label class="fld">Data da venda<input class="in" name="sale_date" type="date" value="${esc(k.sale_date||'')}"></label></div>
+   <label class="fld">Data da venda<input class="in" name="sale_date" type="date" value="${esc(k.sale_date||'')}"></label>
+   <label class="fld">Regra de comissão<select class="in" name="rule_id">${finRuleOpts(k.rule_id)}</select></label><label class="fld">Taxa adm. Canopus (%)<input class="in num" name="admin_rate" type="number" step="0.01" min="0.01" max="100" value="${v('admin_rate')}"></label></div>
    <div class="row"><label class="row sm"><input class="chk" type="checkbox" name="signed" ${k.signed?'checked':''}> Contrato assinado</label><label class="row sm"><input class="chk" type="checkbox" name="accepted" ${k.accepted?'checked':''}> Aceite do cliente</label></div>
    <label class="fld">Motivo da correção (obrigatório se mudar administradora, grupo ou cota)<input class="in" name="reason" maxlength="300"></label>`,
-   onSubmit:dlgAsync(async f=>{const d={status:f.status,docs:f.docs,first_payment:f.first_payment,product:f.product,admin:f.admin,contract:f.contract,grp:f.grp,quota:f.quota,credit:f.credit,term:f.term,sale_date:f.sale_date,signed:!!f.signed,accepted:!!f.accepted,reason:f.reason};
-     await rpc('crm_case_update',{p_org:S.orgId,p_id:k.id,p_data:d});await fcLoad(true);toast('Operação atualizada',{icon:'check'});LS.after=()=>{refresh();if(S.ui.drawer)redrawDrawer()}})})};
+   onSubmit:dlgAsync(async f=>{if((f.rule_id||'')!==(k.rule_id||'')||Number(f.admin_rate||0)!==Number(k.admin_rate||0))await rpc('crm_case_rule',{p_org:S.orgId,p_case:k.id,p_rule:f.rule_id||null,p_admin_rate:f.admin_rate?Number(f.admin_rate):null});const d={status:f.status,docs:f.docs,first_payment:f.first_payment,product:f.product,admin:f.admin,contract:f.contract,grp:f.grp,quota:f.quota,credit:f.credit,term:f.term,sale_date:f.sale_date,signed:!!f.signed,accepted:!!f.accepted,reason:f.reason};
+     await rpc('crm_case_update',{p_org:S.orgId,p_id:k.id,p_data:d});await fcLoad(true);FIN.d=null;toast('Operação atualizada',{icon:'check'});LS.after=()=>{refresh();if(S.ui.drawer)redrawDrawer()}})})};
 ACT['case-return']=el=>{const k=caseFind(el.dataset.id);if(!k)return;
   dialog({title:'Devolver ao Kanban — '+k.client_name,sub:'O cliente voltará para atendimento. As informações operacionais ficam no histórico.',submit:'Devolver ao Kanban',body:`<label class="fld">Etapa de retorno<select class="in" name="stage">${['Fechamento','Call 2','Call 1 agendada','Simulação recebida','Closer'].map(s=>`<option>${s}</option>`).join('')}</select></label><label class="fld">Motivo do retorno<textarea class="in" name="reason" rows="3" maxlength="1000" required placeholder="Ex.: fechamento marcado por engano"></textarea></label>`,
    onSubmit:dlgAsync(async f=>{flReplace(await rpc('crm_case_return',{p_org:S.orgId,p_id:k.id,p_stage:f.stage,p_reason:f.reason}));await fcLoad(true);closeAll();toast('Cliente devolvido ao Kanban',{icon:'undo-2'})})})};

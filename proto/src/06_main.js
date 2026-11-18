@@ -11,9 +11,9 @@ function applyPrefs(){document.body.dataset.mode=S.ui.mode;document.body.dataset
 function setTheme(m){S.ui.mode=m;savePrefs();applyPrefs();refresh()}
 
 /* ----- navegação ----- */
-const NAV=[['Leads',[['kanban','kanban','K'],['leads-frios','snowflake','L']]],['Clientes',[['clientes','users-round','C']]],['Operação',[['visao-geral','layout-dashboard','V'],['funis','kanban','F'],['contatos','contact','C'],['tarefas','list-checks','T'],['conversas','message-square','M'],['whatsapp','smartphone','W']]],
+const NAV=[['Leads',[['kanban','kanban','K'],['leads-frios','snowflake','L']]],['Clientes',[['clientes','users-round','C']]],['Financeiro',[['financeiro','wallet','F']]],['Operação',[['visao-geral','layout-dashboard','V'],['funis','kanban','F'],['contatos','contact','C'],['tarefas','list-checks','T'],['conversas','message-square','M'],['whatsapp','smartphone','W']]],
   ['Desempenho',[['metas','trophy','M']]],['Gestão',[['equipe','users','E'],['planos','credit-card','P'],['suporte','life-buoy','S']]]];
-const vlabel=v=>v==='perfil'?'Meu perfil':v==='kanban'?(isAdminish()?'Kanban Global':'Meu Kanban'):v==='leads-frios'?'Leads Frios':v==='clientes'?(isOffice()?'Clientes / CRM Global':'Minha carteira'):v==='suporte'?'Suporte / Operacional':(MODS.find(m=>m[0]===v)||[0,v])[1];
+const vlabel=v=>v==='perfil'?'Meu perfil':v==='kanban'?(isAdminish()?'Kanban Global':'Meu Kanban'):v==='leads-frios'?'Leads Frios':v==='clientes'?(isOffice()?'Clientes / CRM Global':'Minha carteira'):v==='suporte'?'Suporte / Operacional':v==='financeiro'?(isOffice()?'Financeiro Comercial':'Minhas comissões'):(MODS.find(m=>m[0]===v)||[0,v])[1];
 const VIC=Object.fromEntries(NAV.flatMap(g=>g[1].map(i=>[i[0],i[1]])));
 function miniRing(p,n){const r=16,c=2*Math.PI*r;return`<span class="mini-ring"><svg width="40" height="40" viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="20" r="${r}" fill="none" stroke="rgba(243,238,228,.18)" stroke-width="3"/><circle cx="20" cy="20" r="${r}" fill="none" stroke="#C48A2C" stroke-width="3" stroke-linecap="round" stroke-dasharray="${(c*p).toFixed(1)} ${c.toFixed(1)}" transform="rotate(-90 20 20)"/></svg><b>${n}</b></span>`}
 function renderNav(){
