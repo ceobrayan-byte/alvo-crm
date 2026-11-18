@@ -21,7 +21,8 @@ body[data-mode="claro"]{
   --glow:none; --shadow:0 12px 32px rgba(9,53,46,.14); color-scheme:light;
 }
 *{box-sizing:border-box;margin:0}
-html,body{height:100%}
+html,body,#app{height:100%}
+body{height:100dvh}
 body{font:14px/1.5 var(--font-ui);color:var(--ink);background:var(--bg);-webkit-font-smoothing:antialiased;overflow:hidden}
 body::before{content:"";position:fixed;inset:0;pointer-events:none;background:
   radial-gradient(900px 480px at 85% -8%,rgba(196,138,44,.10),transparent 70%),
