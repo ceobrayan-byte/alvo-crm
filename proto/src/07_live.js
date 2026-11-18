@@ -128,26 +128,12 @@ function showFatal(e){
 async function signOut(){try{await sb.auth.signOut()}catch(e){}location.reload()}
 
 /* ----- leitura: banco -> formato das telas ----- */
-async function loadOrg(orgId,me){
-  const must=r=>{if(r.error)throw r.error;return r.data};
-  const[orgR,rolesR,permsR,teamsR,pipesR,stagesR,team]=await Promise.all([
-    sb.from('organizations').select('id,name,city,plan_key,seats,goal_credit,cycle_start_day').eq('id',orgId).single(),
-    sb.from('org_roles').select('role_key,label,data_scope').eq('organization_id',orgId),
-    sb.from('role_permissions').select('role_key,module,level').eq('organization_id',orgId),
-    sb.from('teams').select('id,name').eq('organization_id',orgId),
-    sb.from('pipelines').select('id,key,name,sort').eq('organization_id',orgId).order('sort'),
-    sb.from('pipeline_stages').select('id,pipeline_id,key,label,sort,probability,kind').order('sort'),
-    rpc('crm_team',{p_org:orgId}),
-  ]);
-  const org=must(orgR),perm=must(permsR),teams=must(teamsR),pipes=must(pipesR),stages=must(stagesR);must(rolesR);
-  const all=async(t,cols,f)=>{const out=[];for(let p=0;;p++){let q=sb.from(t).select(cols).eq('organization_id',orgId).order('id');if(f)q=f(q);const{data,error}=await q.range(p*1000,p*1000+999);if(error)throw error;out.push(...data);if(data.length<1000)break}return out};
-  const[leads,deals,tasks,xp,invs]=await Promise.all([
-    all('leads','id,name,phone,email,origin,product_interest,desired_credit,tags,owner_user_id,created_at,updated_at'),
-    all('deals','id,pipeline_id,stage_id,lead_id,owner_user_id,credit_value,temperature,stage_entered_at,lost_reason,won_at,created_at'),
-    all('tasks','id,title,task_type,due_at,status,assigned_user_id,lead_id,deal_id,completed_at'),
-    all('xp_events','user_id,action_key,xp,occurred_on,created_at'),
-    all('invitations','id,email,role_key,team_id,status,created_at,expires_at').catch(()=>[]),
-  ]);
+async function loadOrg(orgId,me,b){
+  /* uma só chamada (crm_boot) traz tudo: antes eram ~14 requisições em 4 rodadas */
+  if(!b)b=await rpc('crm_boot',{p_org:orgId});
+  if(b.me)me=b.me;
+  const org=b.org||{},perm=b.perms||[],teams=b.teams||[],pipes=b.pipes||[],stages=b.stages||[],team=b.team||[];
+  const leads=b.leads||[],deals=b.deals||[],tasks=b.tasks||[],xp=b.xp||[],invs=b.invites||[];
   /* funis */
   Object.keys(PIPES).forEach(k=>delete PIPES[k]);LS.stage={};LS.info={};
   const pk={};
@@ -198,8 +184,8 @@ async function loadOrg(orgId,me){
 const stub=x=>({id:x.id,name:x.name,sub:'',mark:(x.name||'?').trim().charAt(0).toUpperCase(),plan:PLANS[x.plan]?x.plan:'essencial',users:[{id:ME,role:RK[x.role]||'Vendedor'}],contacts:[],deals:[],tasks:[],convs:[],notifs:[],inst:[],invites:[],tickets:[],invoices:[],hist:[],g:{},perms:{},teams:[]});
 
 async function reload(){
-  const me=await rpc('crm_me',{p_org:S.orgId});
-  S.orgs[S.orgId]=await loadOrg(S.orgId,me);LS.at=Date.now();
+  const b=await rpc('crm_boot',{p_org:S.orgId});
+  S.orgs[S.orgId]=await loadOrg(S.orgId,b.me,b);LS.at=Date.now();
   refresh();redrawDrawer();
 }
 
@@ -207,18 +193,20 @@ async function reload(){
 async function enter(){
   $('#app').innerHTML='<div class="auth-load" role="status">Carregando…</div>';
   let me;
-  try{const{data}=await sb.auth.getUser();if(data&&data.user&&data.user.user_metadata&&data.user.user_metadata.temp_pw)return showNewPassword(true)}catch(e){}
+  try{const{data}=await sb.auth.getSession();const u=data&&data.session&&data.session.user;if(u&&u.user_metadata&&u.user_metadata.temp_pw)return showNewPassword(true)}catch(e){}
   try{
     const tok=inviteToken();
     if(tok){clearInvite();try{await rpc('crm_accept_invitation',{p_token:tok});LS.notice='Convite aceito. Bem-vindo(a)!'}catch(e){LS.notice=errMsg(e)}}
-    me=await rpc('crm_me',{p_org:null});
+    const boot0=await rpc('crm_boot',{p_org:null});me=boot0.me;
     if(!me.linked||!me.active_org){showUnlinked(LS.notice&&!/aceito/.test(LS.notice)?LS.notice:'');LS.notice=null;return}
     ME=me.user.id;LS.orgList=me.organizations;
     S.orgs={};me.organizations.forEach(x=>S.orgs[x.id]=stub(x));
-    S.orgs[me.active_org]=await loadOrg(me.active_org,me);S.orgId=me.active_org;
+    S.orgs[me.active_org]=await loadOrg(me.active_org,me,boot0);S.orgId=me.active_org;
   }catch(e){return showFatal(e)}
   resetViewState();LS.at=Date.now();
   boot();
+  /* já busca, em segundo plano, os dados de Leads, Clientes e Financeiro para as telas abrirem na hora */
+  setTimeout(()=>{try{flLoad();fcLoad();finLoad()}catch(e){}},50);
   if(!LS.started){LS.started=true;
     document.addEventListener('visibilitychange',()=>{if(!document.hidden&&Date.now()-LS.at>90000&&!S.ui.modal&&!S.ui.drawer&&!LS.busy)reload().catch(()=>{})});
   }
@@ -331,7 +319,7 @@ ACT['set-goals']=()=>{
 ACT.org=async el=>{
   const id=el.dataset.id;S.ui.pop=null;if(id===S.orgId){renderPops();return}
   await guarded(async()=>{
-    const me=await rpc('crm_me',{p_org:id});S.orgs[id]=await loadOrg(id,me);S.orgId=id;LS.at=Date.now();
+    const b=await rpc('crm_boot',{p_org:id});S.orgs[id]=await loadOrg(id,b.me,b);S.orgId=id;LS.at=Date.now();
     resetViewState();if(S.ui.drawer||S.ui.modal)closeAll();if(LV(S.view)===0)S.view='visao-geral';
     toast(`Organização: <b>${esc(O().name)}</b> · seu perfil: ${esc(ROLE())}`,{icon:'building-2'});refresh(true);
   });
@@ -346,6 +334,8 @@ ACT.logout=()=>{S.ui.pop=null;renderPops();signOut()};
 ['msg','ticket-reply','perfil'].forEach(k=>{FORMS[k]=()=>soon()});
 
 /* ----- início ----- */
+/* os módulos Leads, Clientes e Financeiro (06z_*) usam estas funções: precisam estar visíveis fora deste bloco */
+Object.assign(window,{rpc,fail,guarded,dlgAsync,fmtPhone,reload,LS});
 (async function(){
   if(!window.supabase||!CFG.url||!CFG.key){authShell('<h1>Configuração ausente</h1><p class="sm">Não foi possível carregar a biblioteca de acesso. Recarregue a página.</p>');return}
   sb=window.supabase.createClient(CFG.url,CFG.key,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true,flowType:'pkce'}});

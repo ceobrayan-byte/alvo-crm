@@ -10,7 +10,11 @@ if not logo.startswith('data:'): logo='data:image/png;base64,'+logo
 js=js.replace('__LOGO_IVORY__',logo)
 URL='https://mbhouzjmiglhnukpuyco.supabase.co'
 KEY='sb_publishable_AZbWIxWa9CmVVTCAhhuP6A_DsUAljhx'
-SBJS='https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.0/dist/umd/supabase.js'
+SBJS='vendor/supabase-2.119.0.js'
+import shutil
+os.makedirs(os.path.join(out,'vendor'),exist_ok=True)
+shutil.copy(os.path.join(root,'vendor','supabase-2.119.0.js'),os.path.join(out,'vendor','supabase-2.119.0.js'))
+ICONS=open(os.path.join(root,'vendor','icons.js'),encoding='utf-8').read()
 html='''<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -18,7 +22,7 @@ html='''<!DOCTYPE html>
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex,nofollow">
 <title>ALVO · Plataforma Comercial</title>
-<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="preconnect" href="'''+URL+'''" crossorigin><link rel="preload" href="'''+SBJS+'''" as="script"><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
 '''+css+'''
@@ -32,7 +36,8 @@ html='''<!DOCTYPE html>
 <div class="modal" id="modal"></div>
 <div class="toasts" id="toasts" aria-live="polite"></div>
 <script>window.__LIVE=true;window.__CFG={url:"'''+URL+'''",key:"'''+KEY+'''"};</script>
-<script src="https://unpkg.com/lucide@0.460.0/dist/umd/lucide.min.js"></script>
+<script>
+'''+ICONS+'''</script>
 <script src="'''+SBJS+'''"></script>
 <script>
 '''+js+'''
@@ -46,6 +51,8 @@ open(os.path.join(out,'_headers'),'w',encoding='utf-8').write('''/*
   X-Frame-Options: DENY
   Referrer-Policy: strict-origin-when-cross-origin
   Permissions-Policy: camera=(), microphone=(), geolocation=()
-  Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://unpkg.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self' '''+URL+'''; frame-ancestors 'none'; base-uri 'self'; form-action 'self'
+  Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self' '''+URL+'''; frame-ancestors 'none'; base-uri 'self'; form-action 'self'
+/vendor/*
+  Cache-Control: public, max-age=31536000, immutable
 ''')
 print('ok',len(html)//1024,'KB')
