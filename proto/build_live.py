@@ -4,7 +4,7 @@ src=os.path.join(root,'src')
 out=os.path.join(root,'..','dist')
 os.makedirs(out,exist_ok=True)
 css=open(os.path.join(src,'00_style.css'),encoding='utf-8').read()
-js=''.join(open(f,encoding='utf-8').read()+'\n' for f in sorted(glob.glob(os.path.join(src,'0[1-7]_*.js'))))
+js=''.join(open(f,encoding='utf-8').read()+'\n' for f in sorted(glob.glob(os.path.join(src,'0[1-7]*_*.js'))))
 logo=open(os.path.join(root,'logo_ivory.b64'),encoding='utf-8').read().strip()
 if not logo.startswith('data:'): logo='data:image/png;base64,'+logo
 js=js.replace('__LOGO_IVORY__',logo)

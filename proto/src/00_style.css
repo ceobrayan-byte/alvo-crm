@@ -293,3 +293,9 @@ body[data-motion="reduce"] *{transition:none!important}
 .auth-card .lnk{color:var(--accent);font-size:12.5px;text-decoration:underline;cursor:pointer;background:none;border:0;padding:0;text-align:left}
 .auth-card .btn.pri{height:42px;justify-content:center}
 .auth-load{display:grid;place-items:center;min-height:100vh;color:var(--ink3);font-size:13px}
+/* Bloco Leads (Floot) */
+.lcol{display:flex;flex-direction:column;gap:10px;min-width:0;padding:10px;border-radius:var(--r);border:1px solid var(--line);background:color-mix(in srgb,var(--bg2) 60%,transparent);scroll-snap-align:start}
+.lcol.over{border-color:var(--gold);box-shadow:var(--glow)} .lcol.nodrop{opacity:.92}
+.lcard{display:flex;flex-direction:column;gap:8px;padding:12px;border-radius:12px;border:1px solid var(--line);background:var(--panel-solid);cursor:pointer;transition:border-color .15s,transform .15s}
+.lcard[draggable=true]{cursor:grab} .lcard:hover{border-color:var(--line2);transform:translateY(-1px)} .lcard.drag{opacity:.4}
+.fr{display:flex;justify-content:space-between;gap:12px;padding:6px 0;border-bottom:1px solid var(--line)}
