@@ -64,7 +64,7 @@ function finRegras(){
 VIEWS['financeiro']=()=>{
   finLoad();const d=FIN.d,o=O();
   if(!d)return`<div class="pg"><div class="pg-h"><div class="grow"><div class="eyebrow">${esc(o.name)}</div><h2>Financeiro Comercial</h2></div></div><div class="empty">Carregando…</div></div>`;
-  const tabs=d.office?[['alvo','Receita ALVO'],['vend','Repasses a vendedores'],['mens','Mensalidades'],['regras','Regras e acordos']]:[['vend',ROLE()==='Coordenador'?'Comissões da equipe':'Minhas comissões']];
+  const tabs=d.office?[['alvo','Receita ALVO'],['vend','Repasses a vendedores'],['mens','Mensalidades'],['regras','Regras e acordos']].concat(ROLE()==='Proprietário'?[['gestao','Gestão de comissionamento']]:[]):[['vend',ROLE()==='Coordenador'?'Comissões da equipe':'Minhas comissões']];
   if(!tabs.find(t=>t[0]===FIN.tab))FIN.tab=tabs[0][0];
   const A=d.events.filter(e=>e.kind==='ALVO'),V=d.events.filter(e=>e.kind==='VENDEDOR');
   const kp=d.office?[['ALVO a receber',fBRL(fSum(A.filter(e=>e.status==='Prevista'),e=>e.amount))],['ALVO recebido',fBRL(fSum(A.filter(e=>e.status==='Recebida'),e=>e.actual_amount))],['Vendedores a pagar',fBRL(fSum(V.filter(e=>e.status==='Prevista'),e=>e.amount))],['Vendedores pago',fBRL(fSum(V.filter(e=>e.status==='Paga'),e=>e.actual_amount))]]
@@ -72,7 +72,7 @@ VIEWS['financeiro']=()=>{
   return`<div class="pg"><div class="pg-h"><div class="grow"><div class="eyebrow">${esc(o.name)}</div><h2>${vlabel('financeiro')}</h2></div><button class="btn" data-act="fin-reload">${ic('refresh-cw')}Atualizar</button></div>
    <div class="g" style="grid-template-columns:repeat(4,1fr)">${kp.map(([a,b])=>`<div class="card"><div class="xs muted">${a}</div><div class="disp" style="font-size:26px">${b}</div></div>`).join('')}</div>
    <div class="row" role="tablist">${tabs.map(t=>`<button class="btn sm ${FIN.tab===t[0]?'pri':''}" role="tab" data-act="fin-tab" data-id="${t[0]}">${t[1]}</button>`).join('')}</div>
-   ${FIN.tab==='alvo'?finTable('ALVO'):FIN.tab==='vend'?finTable('VENDEDOR'):FIN.tab==='mens'?finMens():finRegras()}</div>`;
+   ${FIN.tab==='alvo'?finTable('ALVO'):FIN.tab==='vend'?finTable('VENDEDOR'):FIN.tab==='mens'?finMens():FIN.tab==='gestao'?caView():finRegras()}</div>`;
 };
 ACT['fin-tab']=el=>{FIN.tab=el.dataset.id;FIN.status='all';refresh()};
 ACT['fin-reload']=async()=>{await finLoad(true);toast('Financeiro atualizado',{icon:'refresh-cw'})};
