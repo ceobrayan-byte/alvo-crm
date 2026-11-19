@@ -49,14 +49,14 @@ const USERS1=[
   {id:'u5',name:'Camila Rocha',cargo:'Executiva de contas',team:'Beta',role:'Vendedor'},
   {id:'u6',name:'Bruno Tavares',cargo:'Executivo de contas',team:'Beta',role:'Vendedor'},
   {id:'u7',name:'Larissa Mendes',cargo:'Executiva de contas',team:'Alfa',role:'Vendedor'},
-  {id:'u8',name:'Thiago Cardoso',cargo:'Coordenador regional',team:'Gestão',role:'Gestor'},
+  {id:'u8',name:'Thiago Cardoso',cargo:'Coordenador regional',team:'Gestão',role:'Coordenador'},
   {id:'u9',name:'Patrícia Nunes',cargo:'Suporte operacional',team:'Suporte',role:'Suporte',sell:false},
   {id:'u10',name:'Eduardo Faria',cargo:'Financeiro',team:'Financeiro',role:'Financeiro',sell:false},
   {id:'u11',name:'Aline Souza',cargo:'Executiva de contas',team:'Beta',role:'Vendedor'},
   {id:'u12',name:'Gustavo Reis',cargo:'Executivo de contas',team:'Alfa',role:'Vendedor'},
 ];
 const USERS2=[
-  {id:'me',name:'Marina Couto',cargo:'Gerente comercial',team:'Gestão',role:'Gestor'},
+  {id:'me',name:'Marina Couto',cargo:'Gerente comercial',team:'Gestão',role:'Coordenador'},
   {id:'v1',name:'Roberto Siqueira',cargo:'Diretor regional',team:'Diretoria',role:'Proprietário',sell:false},
   {id:'v2',name:'Daniela Furtado',cargo:'Administradora',team:'Gestão',role:'Administrador',sell:false},
   {id:'v3',name:'Matheus Pinheiro',cargo:'Executivo de contas',team:'Alfa',role:'Vendedor'},
@@ -83,8 +83,8 @@ const ORGDEFS=[
    inst:[{id:'i1',name:'Atendimento Horizonte',kind:'nao-oficial',phone:'+55 67 90000-0300',state:'conectada',since:'14/10/2026'}]},
 ];
 const MODS=[['visao-geral','Visão geral'],['funis','Funis'],['contatos','Contatos'],['tarefas','Tarefas'],['conversas','Conversas'],['whatsapp','WhatsApp'],['metas','Metas e conquistas'],['equipe','Equipe e permissões'],['planos','Planos e pagamentos'],['suporte','Suporte interno']];
-const ROLES=['Proprietário','Administrador','Gestor','Vendedor','Suporte','Financeiro'];
-const PERM0={'Proprietário':[3,3,3,3,3,3,3,3,3,3],'Administrador':[3,3,3,3,3,3,3,3,3,3],'Gestor':[3,3,3,3,3,2,3,2,0,2],'Vendedor':[1,2,2,2,2,0,1,0,0,2],'Suporte':[1,2,1,2,2,0,1,0,0,3],'Financeiro':[2,1,1,1,0,0,1,0,2,2]};
+const ROLES=['Proprietário','Administrador','Coordenador','Vendedor','Suporte','Financeiro'];
+const PERM0={'Proprietário':[3,3,3,3,3,3,3,3,3,3],'Administrador':[3,3,3,3,3,3,3,3,3,3],'Coordenador':[3,3,3,3,3,2,3,2,0,2],'Vendedor':[1,2,2,2,2,0,1,0,0,2],'Suporte':[1,2,1,2,2,0,1,0,0,3],'Financeiro':[2,1,1,1,0,0,1,0,2,2]};
 const PLANS={
   essencial:{name:'Essencial',price:59,users:5,wa:1,pipes:1,feat:['1 funil de vendas','1 instância de WhatsApp','Contatos, tarefas e conversas','Metas e ranking da equipe']},
   equipe:{name:'Equipe',price:99,users:15,wa:3,pipes:5,feat:['Até 5 funis','3 instâncias de WhatsApp','Permissões por perfil','Desafios e conquistas','Suporte interno com SLA']},
@@ -122,7 +122,7 @@ const brlK=v=>v>=1e6?'R$ '+(v/1e6).toFixed(2).replace('.',',').replace(/,?0$/,''
 function genOrg(def){
   const r=rngf(def.seed), pick=a=>a[Math.floor(r()*a.length)];
   const users=def.users.map(u=>({status:'Ativo',sell:true,email:u.name.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/ /g,'.')+'@exemplo.com.br',last:at((u.id==='me'?0:Math.floor(r()*3000))*MIN),...u}));
-  const sellers=users.filter(u=>u.sell&&['Vendedor','Administrador','Gestor'].includes(u.role));
+  const sellers=users.filter(u=>u.sell&&['Vendedor','Administrador','Coordenador'].includes(u.role));
   const contacts=[],deals=[],tasks=[],convs=[];
   const live=def.inst.filter(i=>i.state==='conectada');
   for(let i=0;i<def.nContacts;i++){

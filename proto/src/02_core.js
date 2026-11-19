@@ -10,7 +10,9 @@ const deal=id=>O().deals.find(d=>d.id===id);
 const conv=id=>O().convs.find(c=>c.id===id);
 const inst=id=>O().inst.find(i=>i.id===id);
 const ROLE=()=>user(ME).role;
-const LV=mod=>{mod=({'kanban':'contatos','leads-frios':'contatos','clientes':'contatos','financeiro':'contatos'})[mod]||mod;const i=MODS.findIndex(m=>m[0]===mod);return i<0?3:(O().perms[ROLE()][i]||0)};
+const LV0=mod=>{mod=({'kanban':'contatos','leads-frios':'contatos','clientes':'contatos','financeiro':'contatos','emails':'suporte'})[mod]||mod;const i=MODS.findIndex(m=>m[0]===mod);return i<0?3:(O().perms[ROLE()][i]||0)};
+/* telas por perfil (role_screens): decidem o que aparece no menu; o banco continua decidindo o acesso */
+const LV=v=>{const base=LV0(v),t=O().screens&&O().screens[ROLE()];return t&&t[v]!=null?Math.min(base,t[v]):base};
 const $=(s,r=document)=>r.querySelector(s), $$=(s,r=document)=>[...r.querySelectorAll(s)];
 const sum=a=>a.reduce((x,y)=>x+y,0);
 const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -43,7 +45,7 @@ function metrics(){
   const open=o.convs.filter(c=>c.status==='aberta');
   const risk=open.filter(slaRisk);
   const mine=won.filter(d=>d.owner===ME);
-  const myTarget=o.goal/Math.max(1,o.users.filter(u=>u.sell&&['Vendedor','Administrador','Gestor'].includes(u.role)).length);
+  const myTarget=o.goal/Math.max(1,o.users.filter(u=>u.sell&&['Vendedor','Administrador','Coordenador'].includes(u.role)).length);
   return{o,won,wonN:won.length,credit,goal:o.goal,wpct,elapsed,rhythm:elapsed?wpct/elapsed:0,left:Math.max(0,o.goal-credit),perDay:Math.max(0,o.goal-credit)/Math.max(1,CYCLE.bdTotal-CYCLE.bdDone),
     active,activeValue:sum(active.map(d=>d.value)),weighted:sum(active.map(d=>d.value*stageOf('comercial',d.stage).p)),stale,
     conv:cm.length?won.length/cm.length:0,open,risk,myCredit:sum(mine.map(d=>d.value)),myTarget,commission:sum(mine.map(d=>d.value))*0.015,

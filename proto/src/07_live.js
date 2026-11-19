@@ -6,7 +6,7 @@ if(!window.__LIVE)return;
 LIVE=true;
 const CFG=window.__CFG||{};
 const LS={stage:{},info:{},orgList:[],at:0,busy:false,after:null,notice:null,started:false};
-const RK={PROPRIETARIO:'Proprietário',ADMINISTRADOR:'Administrador',GESTOR:'Gestor',VENDEDOR:'Vendedor',SUPORTE:'Suporte',FINANCEIRO:'Financeiro'};
+const RK={PROPRIETARIO:'Proprietário',ADMINISTRADOR:'Administrador',GESTOR:'Coordenador',VENDEDOR:'Vendedor',SUPORTE:'Suporte',FINANCEIRO:'Financeiro'};
 const RKI=Object.fromEntries(Object.entries(RK).map(([k,v])=>[v,k]));
 const cap1=s=>{s=String(s||'').toLowerCase();return s.charAt(0).toUpperCase()+s.slice(1)};
 let sb=null;
@@ -15,11 +15,11 @@ let sb=null;
 const rpcRaw=async(fn,args)=>{const{data,error}=await sb.rpc(fn,args||{});if(error)throw error;return data};
 /* ----- "Ver como": o dono/administrador vê o CRM exatamente como um membro da equipe vê (somente leitura) ----- */
 const PV={on:false,id:null,name:'',roleKey:null,scope:null,perms:{},realMe:null,team:{}};
-const PV_READ=new Set(['crm_boot','crm_me','crm_team','crm_leads_board','crm_cold_list','crm_customers_list','crm_cases_list','crm_fin_list']);
+const PV_READ=new Set(['crm_boot','crm_me','crm_team','crm_leads_board','crm_cold_list','crm_customers_list','crm_cases_list','crm_fin_list','crm_mail_audience']);
 const pvVis=o=>o==null||o===PV.id||PV.scope==='ORGANIZACAO'||(PV.scope==='EQUIPE'&&PV.team[PV.id]&&PV.team[o]===PV.team[PV.id]);
 function pvFilter(fn,d){
   const office=(PV.perms.suporte||0)>=3,admin=(PV.perms.equipe||0)>=3;
-  if(fn==='crm_boot'&&d&&d.me){d=Object.assign({},d);d.me=Object.assign({},d.me,{role:PV.roleKey,data_scope:PV.scope,permissions:PV.perms});
+  if(fn==='crm_boot'&&d&&d.me){d=Object.assign({},d);d.me=Object.assign({},d.me,{role:PV.roleKey,data_scope:PV.scope,permissions:PV.perms,user:{id:PV.id,name:PV.name,email:''}});
     d.leads=(d.leads||[]).filter(l=>pvVis(l.owner_user_id));d.deals=(d.deals||[]).filter(x=>pvVis(x.owner_user_id));d.tasks=(d.tasks||[]).filter(t=>pvVis(t.assigned_user_id));
     if(!(PV.perms.equipe>=1))d.invites=[];return d}
   if(fn==='crm_leads_board')return(d||[]).filter(l=>l.stage==='Geladeira'||pvVis(l.owner_user_id));
@@ -170,9 +170,13 @@ async function loadOrg(orgId,me,b){
   const startDay=org.cycle_start_day||15;computeCycle(startDay);
   const cycleIso=isoDay(CYCLE.start);
   /* equipe */
-  const users=team.map(m=>({id:m.id,name:m.name,cargo:m.job_title||RK[m.role]||m.role,team:m.team||'—',role:RK[m.role]||m.role,sell:m.is_seller!==false&&!['SUPORTE','FINANCEIRO'].includes(m.role),
+  const users0=team.map(m=>({id:m.id,team_id:m.team_id||null,name:m.name,cargo:m.job_title||RK[m.role]||m.role,team:m.team||'—',role:RK[m.role]||m.role,sell:m.is_seller!==false&&!['SUPORTE','FINANCEIRO'].includes(m.role),
     status:m.status==='ATIVO'?'Ativo':'Inativo',email:m.email||'',last:m.last_access_at?new Date(m.last_access_at):new Date(0)}));
+  const myTeam=(team.find(m=>m.id===me.user.id)||{}).team_id||null;
+  const users=me.data_scope==='EQUIPE'?users0.filter(u=>u.id===me.user.id||(myTeam&&u.team_id===myTeam)):users0;
   if(!users.some(u=>u.id===me.user.id))users.unshift({id:me.user.id,name:me.user.name,cargo:RK[me.role]||me.role,team:'—',role:RK[me.role]||me.role,sell:true,status:'Ativo',email:me.user.email||'',last:new Date()});
+  /* telas por perfil (menu) */
+  const screens={};(b.screens||[]).forEach(r=>{const lab=RK[r.role_key];if(!lab)return;(screens[lab]=screens[lab]||{})[r.screen]=r.level});
   /* permissões */
   const perms={};ROLES.forEach(r=>perms[r]=MODS.map(()=>0));
   perm.forEach(p=>{const lab=RK[p.role_key],mi=MODS.findIndex(m=>m[0]===p.module);if(lab&&mi>=0)perms[lab][mi]=p.level});
@@ -200,7 +204,7 @@ async function loadOrg(orgId,me,b){
     status:(i.status==='PENDENTE'&&new Date(i.expires_at)>new Date())?'Pendente':'Expirado',sent:new Date(i.created_at)}));
   const goalSet=+org.goal_credit>0;
   return{id:org.id,name:org.name,sub:org.city||'',mark:(org.name||'?').trim().charAt(0).toUpperCase(),plan:PLANS[org.plan_key]?org.plan_key:'essencial',seats:org.seats,seed:0,nContacts:0,ddd:'',city:org.city||'',
-    goal:goalSet?+org.goal_credit:1,goalSet,users,contacts,deals:dls,tasks:tks,convs:[],g,hist:[],spark:[[0,0],[0,0],[0,0],[0,0],[0,0],[0,0]],invoices:[],perms,invites,tickets:[],notifs:[],inst:[],
+    goal:goalSet?+org.goal_credit:1,goalSet,users,contacts,deals:dls,tasks:tks,convs:[],g,hist:[],spark:[[0,0],[0,0],[0,0],[0,0],[0,0],[0,0]],invoices:[],perms,screens,invites,tickets:[],notifs:[],inst:[],
     teams:teams.map(t=>({id:t.id,name:t.name}))};
 }
 const stub=x=>({id:x.id,name:x.name,sub:'',mark:(x.name||'?').trim().charAt(0).toUpperCase(),plan:PLANS[x.plan]?x.plan:'essencial',users:[{id:ME,role:RK[x.role]||'Vendedor'}],contacts:[],deals:[],tasks:[],convs:[],notifs:[],inst:[],invites:[],tickets:[],invoices:[],hist:[],g:{},perms:{},teams:[]});
@@ -352,7 +356,7 @@ ACT.logout=()=>{S.ui.pop=null;renderPops();signOut()};
 ['import-csv','new-challenge','inv-resend','inv-del','inv-copy','perm','perm-reset','u-toggle','u-reset','connect','inst-reconnect','inst-off','inst-cfg','cfg-auto','cfg-hours',
  'new-ticket','tk-resolve','tk-reopen','plan-change','buy-seats','pay-method','inv-dl','end-session','start-conv','conv-resolve','conv-deal','new-org','req-access'
 ].forEach(k=>{ACT[k]=()=>soon()});
-['dealowner','dealtemp','bulkassign','bulktag','urole','uteam','ucargo','tstatus','convassign','cfg-mode','cfg-pipe','cfg-away'].forEach(k=>{CHG[k]=el=>{soon();refresh()}});
+['dealowner','dealtemp','bulkassign','bulktag','ucargo','tstatus','convassign','cfg-mode','cfg-pipe','cfg-away'].forEach(k=>{CHG[k]=el=>{soon();refresh()}});
 ['msg','ticket-reply','perfil'].forEach(k=>{FORMS[k]=()=>soon()});
 
 const PV_OK=()=>['PROPRIETARIO','ADMINISTRADOR','GESTOR'].includes(PV.on?PV.realRole:LS.myRole);
@@ -395,9 +399,24 @@ ACT['pv-stop']=async()=>{
   await guarded(pvApply);toast('De volta à sua visão.',{icon:'eye-off'});
 };
 
+/* ----- equipe: perfil e equipe de cada membro (dono/administrador) ----- */
+CHG.urole=async el=>{const u=user(el.dataset.id),key=RKI[el.value];if(!key){redrawDrawer();return}
+  const ok=await guarded(async()=>{await rpc('crm_member_update',{p_org:S.orgId,p_user:u.id,p_role:key,p_team:null});await reload()});
+  if(ok)toast(`Perfil de <b>${esc(fname(u.name))}</b>: ${esc(el.value)}${key==='GESTOR'?' (equipe própria criada)':''}`,{icon:'shield'});redrawDrawer()};
+CHG.uteam=async el=>{const u=user(el.dataset.id),t=(O().teams||[]).find(x=>x.name===el.value);
+  const ok=await guarded(async()=>{await rpc('crm_member_update',{p_org:S.orgId,p_user:u.id,p_role:null,p_team:t?t.id:''});await reload()});
+  if(ok)toast(`<b>${esc(fname(u.name))}</b> agora em: ${esc(t?t.name:'sem equipe')}`,{icon:'users'});redrawDrawer()};
+
 /* ----- início ----- */
 /* os módulos Leads, Clientes e Financeiro (06z_*) usam estas funções: precisam estar visíveis fora deste bloco */
-Object.assign(window,{rpc,fail,guarded,dlgAsync,fmtPhone,reload,LS});
+/* envio de e-mails (função alvo-mail no Supabase; a chave do Resend fica lá) */
+async function mailFn(body){
+  if(PV.on&&body.action==='send')throw Object.assign(new Error(`Modo "Ver como": nada é enviado vendo como ${PV.name}.`),{code:'PV'});
+  const{data,error}=await sb.functions.invoke('alvo-mail',{body});
+  if(error){let m=error.message;try{const j=await error.context.json();if(j&&j.error)m=j.error}catch(e){}throw new Error(m)}
+  if(data&&data.error)throw new Error(data.error);return data;
+}
+Object.assign(window,{rpc,fail,guarded,dlgAsync,fmtPhone,reload,LS,mailFn});
 (async function(){
   if(!window.supabase||!CFG.url||!CFG.key){authShell('<h1>Configuração ausente</h1><p class="sm">Não foi possível carregar a biblioteca de acesso. Recarregue a página.</p>');return}
   sb=window.supabase.createClient(CFG.url,CFG.key,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true,flowType:'pkce'}});

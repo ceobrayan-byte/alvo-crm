@@ -13,6 +13,7 @@ BEGIN
     'org', (SELECT to_jsonb(x) FROM (SELECT id,name,city,plan_key,seats,goal_credit,cycle_start_day FROM organizations WHERE id=org) x),
     'roles', coalesce((SELECT jsonb_agg(to_jsonb(x)) FROM (SELECT role_key,label,data_scope FROM org_roles WHERE organization_id=org) x),'[]'),
     'perms', coalesce((SELECT jsonb_agg(to_jsonb(x)) FROM (SELECT role_key,module,level FROM role_permissions WHERE organization_id=org) x),'[]'),
+    'screens', coalesce((SELECT jsonb_agg(to_jsonb(x)) FROM (SELECT role_key,screen,level FROM role_screens WHERE organization_id=org) x),'[]'),
     'teams', coalesce((SELECT jsonb_agg(to_jsonb(x)) FROM (SELECT id,name FROM teams WHERE organization_id=org) x),'[]'),
     'pipes', coalesce((SELECT jsonb_agg(to_jsonb(x) ORDER BY x.sort) FROM (SELECT id,key,name,sort FROM pipelines WHERE organization_id=org) x),'[]'),
     'stages', coalesce((SELECT jsonb_agg(to_jsonb(x) ORDER BY x.sort) FROM (SELECT s.id,s.pipeline_id,s.key,s.label,s.sort,s.probability,s.kind FROM pipeline_stages s JOIN pipelines p ON p.id=s.pipeline_id WHERE p.organization_id=org) x),'[]'),

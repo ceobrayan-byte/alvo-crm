@@ -173,7 +173,7 @@ ACT.perm=el=>{
 };
 ACT['perm-reset']=()=>{O().perms=JSON.parse(JSON.stringify(PERM0));toast('Permissões restauradas ao padrão',{icon:'refresh-cw'});refresh();renderNav()};
 function userDrawer(id){
-  const o=O(),u=user(id),g=o.g[id],can=LV('equipe')>=3,locked=!can||u.role==='Proprietário',L=g&&lvl(g.xp),teams=[...new Set(o.users.map(x=>x.team))];
+  const o=O(),u=user(id),g=o.g[id],can=LV('equipe')>=3,locked=!can||u.role==='Proprietário',L=g&&lvl(g.xp),teams=LIVE&&o.teams?['—'].concat(o.teams.map(t=>t.name)):[...new Set(o.users.map(x=>x.team))];
   return`<div class="dr-h">${avN(u.name,48)}<div class="grow"><div class="eyebrow">${esc(u.team)}</div><h3 class="disp" style="font-size:26px;margin-top:2px">${esc(u.name)}</h3><div class="sm muted">${esc(u.email)}</div></div><button class="ibtn" data-act="close" aria-label="Fechar">${ic('x')}</button></div>
   <div class="dr-b"><div class="g" style="grid-template-columns:1fr 1fr"><label class="fld">Perfil<select class="in" data-chg="urole" data-id="${id}" ${locked?'disabled':''}>${ROLES.map(r=>`<option ${r===u.role?'selected':''}>${r}</option>`).join('')}</select></label>
    <label class="fld">Equipe<select class="in" data-chg="uteam" data-id="${id}" ${!can?'disabled':''}>${teams.map(t=>`<option ${t===u.team?'selected':''}>${esc(t)}</option>`).join('')}</select></label>

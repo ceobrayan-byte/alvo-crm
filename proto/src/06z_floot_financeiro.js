@@ -17,7 +17,7 @@ function finRows(kind){
 function finToolbar(kind){
   const months=[...new Set(FIN.d.events.filter(e=>e.kind===kind&&e.due_month).map(e=>fMon(e.due_month)))].sort((a,b)=>a.slice(3)+a.slice(0,2)<b.slice(3)+b.slice(0,2)?-1:1);
   return`<div class="row wrap"><select class="in" style="width:170px" data-chg="fin-month" aria-label="Competência"><option value="all">Todas as competências</option>${months.map(m=>`<option ${FIN.month===m?'selected':''}>${m}</option>`).join('')}<option value="sem" ${FIN.month==='sem'?'selected':''}>Sem competência</option></select>
-  ${FIN.d.office?`<select class="in" style="width:200px" data-chg="fin-seller" aria-label="Vendedor">${fOwnerOpts(FIN.seller,true)}</select>`:''}
+  ${FIN.d.office||ROLE()==='Coordenador'?`<select class="in" style="width:200px" data-chg="fin-seller" aria-label="Vendedor">${fOwnerOpts(FIN.seller,true)}</select>`:''}
   <select class="in" style="width:160px" data-chg="fin-status" aria-label="Situação"><option value="all">Todas as situações</option>${['Prevista',kind==='ALVO'?'Recebida':'Paga'].map(s=>`<option ${FIN.status===s?'selected':''}>${s}</option>`).join('')}</select>
   <label class="search" style="max-width:280px">${ic('search')}<input class="in" style="border:0;background:transparent;height:34px;padding:0" id="finq" placeholder="Cliente, grupo ou cota" value="${esc(FIN.q)}"></label>
   <button class="btn sm end" data-act="fin-export" data-id="${kind}">${ic('download')}Exportar CSV</button></div>`;
@@ -48,12 +48,12 @@ function finRegras(){
 VIEWS['financeiro']=()=>{
   finLoad();const d=FIN.d,o=O();
   if(!d)return`<div class="pg"><div class="pg-h"><div class="grow"><div class="eyebrow">${esc(o.name)}</div><h2>Financeiro Comercial</h2></div></div><div class="empty">Carregando…</div></div>`;
-  const tabs=d.office?[['alvo','Receita ALVO'],['vend','Repasses a vendedores'],['mens','Mensalidades'],['regras','Regras e acordos']]:[['vend','Minhas comissões']];
+  const tabs=d.office?[['alvo','Receita ALVO'],['vend','Repasses a vendedores'],['mens','Mensalidades'],['regras','Regras e acordos']]:[['vend',ROLE()==='Coordenador'?'Comissões da equipe':'Minhas comissões']];
   if(!tabs.find(t=>t[0]===FIN.tab))FIN.tab=tabs[0][0];
   const A=d.events.filter(e=>e.kind==='ALVO'),V=d.events.filter(e=>e.kind==='VENDEDOR');
   const kp=d.office?[['ALVO a receber',fBRL(fSum(A.filter(e=>e.status==='Prevista'),e=>e.amount))],['ALVO recebido',fBRL(fSum(A.filter(e=>e.status==='Recebida'),e=>e.actual_amount))],['Vendedores a pagar',fBRL(fSum(V.filter(e=>e.status==='Prevista'),e=>e.amount))],['Vendedores pago',fBRL(fSum(V.filter(e=>e.status==='Paga'),e=>e.actual_amount))]]
    :[['Previsto para receber',fBRL(fSum(V.filter(e=>e.status==='Prevista'),e=>e.amount))],['Já recebido',fBRL(fSum(V.filter(e=>e.status==='Paga'),e=>e.actual_amount))],['Vendas efetivadas',d.cases.length],['Próximo mês',fBRL(fSum(V.filter(e=>e.status==='Prevista'&&e.due_month&&e.due_month.slice(0,7)===new Date(new Date().getFullYear(),new Date().getMonth()+1,1).toISOString().slice(0,7)),e=>e.amount))]];
-  return`<div class="pg"><div class="pg-h"><div class="grow"><div class="eyebrow">${esc(o.name)}</div><h2>${d.office?'Financeiro Comercial':'Minhas comissões'}</h2></div><button class="btn" data-act="fin-reload">${ic('refresh-cw')}Atualizar</button></div>
+  return`<div class="pg"><div class="pg-h"><div class="grow"><div class="eyebrow">${esc(o.name)}</div><h2>${vlabel('financeiro')}</h2></div><button class="btn" data-act="fin-reload">${ic('refresh-cw')}Atualizar</button></div>
    <div class="g" style="grid-template-columns:repeat(4,1fr)">${kp.map(([a,b])=>`<div class="card"><div class="xs muted">${a}</div><div class="disp" style="font-size:26px">${b}</div></div>`).join('')}</div>
    <div class="row" role="tablist">${tabs.map(t=>`<button class="btn sm ${FIN.tab===t[0]?'pri':''}" role="tab" data-act="fin-tab" data-id="${t[0]}">${t[1]}</button>`).join('')}</div>
    ${FIN.tab==='alvo'?finTable('ALVO'):FIN.tab==='vend'?finTable('VENDEDOR'):FIN.tab==='mens'?finMens():finRegras()}</div>`;

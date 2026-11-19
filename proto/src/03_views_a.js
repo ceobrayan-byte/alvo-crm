@@ -1,6 +1,6 @@
 /* ===== Visão geral, Funis, Contatos ===== */
 const ACT={},FORMS={},CHG={},VIEWS={},FLUSH=new Set(['conversas']);
-const sellersOf=()=>O().users.filter(u=>u.id===ME||(u.sell&&['Vendedor','Administrador','Gestor'].includes(u.role)&&u.status==='Ativo'));
+const sellersOf=()=>O().users.filter(u=>u.id===ME||(u.sell&&['Vendedor','Administrador','Coordenador'].includes(u.role)&&u.status==='Ativo'));
 const ownerOpts=(sel,all)=>(all?`<option value="all">Todos os responsáveis</option>`:'')+sellersOf().map(u=>`<option value="${u.id}" ${sel===u.id?'selected':''}>${esc(u.name)}</option>`).join('');
 const plu=(n,a,b)=>n===1?a:b;
 const greet=()=>{const h=now().getHours();return h<12?'Bom dia':h<18?'Boa tarde':'Boa noite'};

@@ -2,7 +2,8 @@
 const FL={leads:[],cold:[],loaded:false,loading:false,f:{owner:'all',origin:'all'},cq:'',cpage:1,cprev:null,orgFor:null};
 const FSTAGES=['Novo Lead','SDR / SRV','Closer','Call 1 agendada','No-show / Follow-up Call 1','Simulação recebida','Call 2','Segundo no-show','Fechamento','Geladeira'];
 const FSALES='Suporte / Documentação',FORIGINS=['Simulador ALVO','Meta Ads','Google Ads','Indicação','Orgânico','WhatsApp'];
-const isAdminish=()=>['Proprietário','Administrador','Gestor'].includes(ROLE());
+const isAdminish=()=>['Proprietário','Administrador','Coordenador'].includes(ROLE());
+const seeAllLeads=()=>isAdminish()||ROLE()==='Suporte';
 const fOwnerOpts=(sel,all)=>(all?'<option value="all">Todos os responsáveis</option>':'')+sellersOf().map(u=>`<option value="${u.id}" ${sel===u.id?'selected':''}>${esc(u.name)}</option>`).join('');
 const fBRL=v=>v==null||v===''?'—':'R$ '+Number(v).toLocaleString('pt-BR');
 async function flLoad(force){
@@ -16,7 +17,7 @@ async function flLoad(force){
 }
 const flVisible=()=>FL.leads.filter(l=>{
   if(l.stage==='Geladeira')return true;
-  if(!isAdminish()&&l.owner_user_id!==ME)return false;
+  if(!seeAllLeads()&&l.owner_user_id!==ME)return false;
   return(FL.f.owner==='all'||l.owner_user_id===FL.f.owner)&&(FL.f.origin==='all'||l.origin===FL.f.origin);
 }).filter(l=>FL.f.owner==='all'||l.stage==='Geladeira'||l.owner_user_id===FL.f.owner);
 const flSwitch=(on,act,id)=>`<button type="button" class="sw ${on?'on':''}" role="switch" aria-checked="${!!on}" data-act="${act}" data-id="${id}"></button>`;
@@ -32,12 +33,12 @@ function leadCard(l){
 }
 VIEWS['kanban']=()=>{
   flLoad();
-  const o=O(),all=flVisible(),title=isAdminish()?'Kanban Global':'Meu Kanban';
+  const o=O(),all=flVisible(),title=seeAllLeads()?'Funis':'Meu funil';
   const sales=all.filter(l=>l.stage===FSALES||l.fechou);
   const board=all.filter(l=>l.stage!==FSALES&&!l.fechou);
   return`<div class="pg" style="height:100%"><div class="pg-h"><div class="grow"><div class="eyebrow">${esc(o.name)}</div><h2>${title}</h2></div>
    <button class="btn pri" data-act="lead-new">${ic('plus')}Novo lead</button></div>
-   <div class="row wrap">${isAdminish()?`<select class="in" style="width:220px" data-chg="fl-owner" aria-label="Responsável">${fOwnerOpts(FL.f.owner,true)}</select>`:''}
+   <div class="row wrap">${seeAllLeads()?`<select class="in" style="width:220px" data-chg="fl-owner" aria-label="Responsável">${fOwnerOpts(FL.f.owner,true)}</select>`:''}
     <select class="in" style="width:200px" data-chg="fl-origin" aria-label="Origem"><option value="all">Todas as origens</option>${FORIGINS.map(x=>`<option ${FL.f.origin===x?'selected':''}>${x}</option>`).join('')}</select>
     <span class="end sm muted">${board.length} leads no quadro${FL.loading?' · atualizando…':''}</span></div>
    <div class="board" style="flex:1;min-height:420px">${FSTAGES.map(s=>{const ds=board.filter(l=>l.stage===s);
