@@ -187,7 +187,8 @@ select.in option{background:var(--panel-solid);color:var(--ink)}
 .drawer.open{transform:none}
 .dr-h{display:flex;align-items:flex-start;gap:12px;padding:20px 22px;border-bottom:1px solid var(--line)}
 .dr-b{flex:1;overflow:auto;padding:20px 22px;display:flex;flex-direction:column;gap:18px}
-.dr-f{padding:14px 22px;border-top:1px solid var(--line);display:flex;gap:10px;justify-content:flex-end}
+.dr-f{padding:14px 22px;border-top:1px solid var(--line);display:flex;flex-wrap:wrap;gap:8px 10px;justify-content:flex-end}
+.dr-f .btn{flex:1 1 auto;justify-content:center;min-width:0;white-space:nowrap}
 .modal{position:fixed;inset:0;z-index:90;display:none;align-items:flex-start;justify-content:center;padding:8vh 16px 16px}
 .modal.open{display:flex}
 .dlg{width:min(560px,100%);max-height:84vh;overflow:auto;background:var(--panel-solid);border:1px solid var(--line2);border-radius:18px;box-shadow:var(--shadow);padding:22px;display:flex;flex-direction:column;gap:16px}
