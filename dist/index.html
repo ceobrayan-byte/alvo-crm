@@ -1783,6 +1783,9 @@ async function finLoad(force){
   try{FIN.d=await rpc('crm_fin_list',{p_org:S.orgId});FIN.orgFor=S.orgId}catch(e){fail(e)}
   finally{FIN.loading=false;if(S.view==='financeiro')refresh()}
 }
+const finEv=e=>{const m=/^Parcela (\d+)$/.exec(e.event||'');if(!m)return e.event;const tot=FIN.d.events.filter(x=>x.case_id===e.case_id&&x.kind===e.kind&&/^Parcela /.test(x.event)).length;return`Parcela ${m[1]} de ${tot} da comissão`};
+function finGroup(rows,kind){const out=[],by=new Map();rows.forEach(e=>{const k=e.due_month?String(e.due_month).slice(0,7):'~';if(!by.has(k))by.set(k,[]);by.get(k).push(e)});
+  [...by.keys()].sort().forEach(k=>{const es=by.get(k);out.push({head:1,label:k==='~'?'Sem competência (contemplação / faturamento)':'Competência '+k.slice(5,7)+'/'+k.slice(0,4),n:es.length,prev:fSum(es.filter(e=>e.status==='Prevista'),e=>e.amount),real:fSum(es.filter(e=>e.status!=='Prevista'),e=>e.actual_amount)});es.forEach(e=>out.push({e}))});return out}
 const fMon=d=>d?String(d).slice(5,7)+'/'+String(d).slice(0,4):'—';
 const fN=v=>Number(v||0);
 const fSum=(a,f)=>a.reduce((s,x)=>s+fN(f(x)),0);
@@ -1794,16 +1797,29 @@ function finRows(kind){
 function finToolbar(kind){
   const months=[...new Set(FIN.d.events.filter(e=>e.kind===kind&&e.due_month).map(e=>fMon(e.due_month)))].sort((a,b)=>a.slice(3)+a.slice(0,2)<b.slice(3)+b.slice(0,2)?-1:1);
   return`<div class="row wrap"><select class="in" style="width:170px" data-chg="fin-month" aria-label="Competência"><option value="all">Todas as competências</option>${months.map(m=>`<option ${FIN.month===m?'selected':''}>${m}</option>`).join('')}<option value="sem" ${FIN.month==='sem'?'selected':''}>Sem competência</option></select>
-  ${FIN.d.office||ROLE()==='Coordenador'?`<select class="in" style="width:200px" data-chg="fin-seller" aria-label="Vendedor">${fOwnerOpts(FIN.seller,true)}</select>`:''}
+  ${FIN.d.office||ROLE()==='Coordenador'?`<select class="in" style="width:220px" data-chg="fin-seller" aria-label="Vendedor">${finSellerOpts(kind)}</select>`:''}
   <select class="in" style="width:160px" data-chg="fin-status" aria-label="Situação"><option value="all">Todas as situações</option>${['Prevista',kind==='ALVO'?'Recebida':'Paga'].map(s=>`<option ${FIN.status===s?'selected':''}>${s}</option>`).join('')}</select>
   <label class="search" style="max-width:280px">${ic('search')}<input class="in" style="border:0;background:transparent;height:34px;padding:0" id="finq" placeholder="Cliente, grupo ou cota" value="${esc(FIN.q)}"></label>
   <button class="btn sm end" data-act="fin-export" data-id="${kind}">${ic('download')}Exportar CSV</button></div>`;
 }
+const finName=id=>{const u=O().users.find(x=>x.id===id);return u?(u.role==='Proprietário'?'Escritório · '+fname(u.name):u.name):'—'};
+function finSellerOpts(kind){
+  const by={};FIN.d.events.filter(e=>e.kind===kind).forEach(e=>{by[e.seller_user_id]=(by[e.seller_user_id]||0)+1});
+  return'<option value="all">Todos os vendedores</option>'+Object.entries(by).sort((a,b)=>finName(a[0]).localeCompare(finName(b[0]))).map(([id,n])=>`<option value="${esc(id)}" ${FIN.seller===id?'selected':''}>${esc(finName(id))} (${n})</option>`).join('');
+}
+function finBySeller(kind){
+  if(!(FIN.d.office||ROLE()==='Coordenador'))return'';
+  const done=kind==='ALVO'?'Recebida':'Paga',by={};
+  FIN.d.events.filter(e=>e.kind===kind&&(FIN.month==='all'||fMon(e.due_month)===FIN.month||(FIN.month==='sem'&&!e.due_month))).forEach(e=>{const r=by[e.seller_user_id]=by[e.seller_user_id]||{prev:0,real:0,n:0,cases:new Set()};r.n++;r.cases.add(e.case_id);if(e.status==='Prevista')r.prev+=fN(e.amount);else r.real+=fN(e.actual_amount)});
+  const rows=Object.entries(by).sort((a,b)=>(b[1].prev+b[1].real)-(a[1].prev+a[1].real));
+  if(rows.length<2)return'';
+  return`<div class="tbl-wrap"><table class="tbl"><thead><tr><th>${kind==='ALVO'?'Receita ALVO por vendedor':'Repasses por vendedor'}</th><th>Vendas</th><th>${kind==='ALVO'?'A receber':'A pagar'}</th><th>${done==='Recebida'?'Recebido':'Pago'}</th><th></th></tr></thead><tbody>${rows.map(([id,r])=>`<tr class="${FIN.seller===id?'on':''}"><td><b>${esc(finName(id))}</b></td><td class="num">${r.cases.size}</td><td class="num">${fBRL(r.prev)}</td><td class="num">${fBRL(r.real)}</td><td><button class="btn sm ${FIN.seller===id?'pri':'ghost'}" data-act="fin-pick" data-id="${esc(id)}">${FIN.seller===id?'Ver todos':'Ver lançamentos'}</button></td></tr>`).join('')}</tbody></table></div>`;
+}
 function finTable(kind){
   const rows=finRows(kind),done=kind==='ALVO'?'Recebida':'Paga',off=FIN.d.office;
   const prev=fSum(rows.filter(r=>r.status==='Prevista'),r=>r.amount),real=fSum(rows.filter(r=>r.status!=='Prevista'),r=>r.actual_amount);
-  return finToolbar(kind)+`<div class="sm muted">${rows.length} lançamentos · pendente <b class="num">${fBRL(prev)}</b> · ${done.toLowerCase()} <b class="num">${fBRL(real)}</b></div>
-  <div class="tbl-wrap"><table class="tbl"><thead><tr><th>Cliente</th>${kind==='VENDEDOR'&&off?'<th>Vendedor</th>':''}<th>Administradora · grupo/cota</th><th>Evento</th><th>Competência</th><th>Previsto</th><th>${kind==='ALVO'?'Recebido':'Pago'}</th><th>Situação</th><th></th></tr></thead><tbody>${rows.map(e=>`<tr><td><b>${esc(e.client_name)}</b><div class="xs muted">${esc(e.rule_id||'')}</div></td>${kind==='VENDEDOR'&&off?`<td class="sm">${fcUser(e.seller_user_id)}</td>`:''}<td class="sm">${esc(e.adm||'—')}<div class="xs muted">${esc(e.grp||'—')} / ${esc(e.quota||'—')}</div></td><td class="sm">${esc(e.event)}${e.eligible?' <span class="bd ok" title="Mensalidade confirmada">boleto ok</span>':''}</td><td class="sm">${fMon(e.due_month)}</td><td class="num">${fBRL(e.amount)}</td><td class="num">${e.status==='Prevista'?'—':fBRL(e.actual_amount)+`<div class="xs muted">${fcDate(e.settled_on)}${e.reference?' · '+esc(e.reference):''}</div>`}</td><td>${finBd(e.status)}</td><td>${off?(e.status==='Prevista'?`<button class="btn sm" data-act="fin-settle" data-id="${e.id}">${kind==='ALVO'?'Registrar recebimento':'Marcar pago'}</button>`:`<button class="btn sm ghost" data-act="fin-undo" data-id="${e.id}">Desfazer</button>`):''}</td></tr>`).join('')||`<tr><td colspan="9"><div class="empty">${FIN.loading?'Carregando…':'Nenhum lançamento. As comissões são geradas quando a venda é Efetivada e tem regra de comissão definida.'}</div></td></tr>`}</tbody></table></div>`;
+  return finToolbar(kind)+finBySeller(kind)+`<div class="sm muted">${rows.length} lançamentos · pendente <b class="num">${fBRL(prev)}</b> · ${done.toLowerCase()} <b class="num">${fBRL(real)}</b></div>
+  <div class="tbl-wrap"><table class="tbl"><thead><tr><th>Cliente</th>${kind==='VENDEDOR'&&off?'<th>Vendedor</th>':''}<th>Administradora · grupo/cota</th><th>Evento</th><th>Competência</th><th>Previsto</th><th>${kind==='ALVO'?'Recebido':'Pago'}</th><th>Situação</th><th></th></tr></thead><tbody>${finGroup(rows,kind).map(g=>g.head?`<tr class="grp"><td colspan="9" style="background:color-mix(in srgb,var(--gold) 10%,transparent)"><b>${g.label}</b> <span class="sm muted">· ${g.n} lançamento(s) · previsto <b class="num">${fBRL(g.prev)}</b> · ${kind==='ALVO'?'recebido':'pago'} <b class="num">${fBRL(g.real)}</b></span></td></tr>`:(e=>`<tr><td><b>${esc(e.client_name)}</b><div class="xs muted">${esc(e.rule_id||'')}</div></td>${kind==='VENDEDOR'&&off?`<td class="sm">${fcUser(e.seller_user_id)}</td>`:''}<td class="sm">${esc(e.adm||'—')}<div class="xs muted">${esc(e.grp||'—')} / ${esc(e.quota||'—')}</div></td><td class="sm">${esc(finEv(e))}${e.eligible?' <span class="bd ok" title="Mensalidade confirmada">boleto ok</span>':''}</td><td class="sm">${fMon(e.due_month)}</td><td class="num">${fBRL(e.amount)}</td><td class="num">${e.status==='Prevista'?'—':fBRL(e.actual_amount)+`<div class="xs muted">${fcDate(e.settled_on)}${e.reference?' · '+esc(e.reference):''}</div>`}</td><td>${finBd(e.status)}</td><td>${off?(e.status==='Prevista'?`<button class="btn sm" data-act="fin-settle" data-id="${e.id}">${kind==='ALVO'?'Registrar recebimento':'Marcar pago'}</button>`:`<button class="btn sm ghost" data-act="fin-undo" data-id="${e.id}">Desfazer</button>`):''}</td></tr>`)(g.e)).join('')||`<tr><td colspan="9"><div class="empty">${FIN.loading?'Carregando…':'Nenhum lançamento. As comissões são geradas quando a venda é Efetivada e tem regra de comissão definida.'}</div></td></tr>`}</tbody></table></div>`;
 }
 function finMens(){
   const d=FIN.d,inst={};d.installments.forEach(i=>{(inst[i.case_id]=inst[i.case_id]||{})[i.n]=i});
@@ -1837,6 +1853,7 @@ VIEWS['financeiro']=()=>{
 };
 ACT['fin-tab']=el=>{FIN.tab=el.dataset.id;FIN.status='all';refresh()};
 ACT['fin-reload']=async()=>{await finLoad(true);toast('Financeiro atualizado',{icon:'refresh-cw'})};
+ACT['fin-pick']=el=>{FIN.seller=FIN.seller===el.dataset.id?'all':el.dataset.id;refresh()};
 CHG['fin-month']=el=>{FIN.month=el.value;refresh()};CHG['fin-seller']=el=>{FIN.seller=el.value;refresh()};CHG['fin-status']=el=>{FIN.status=el.value;refresh()};
 document.addEventListener('input',ev=>{if(ev.target.id==='finq'){FIN.q=ev.target.value;const p=ev.target.selectionStart;refresh();const n=$('#finq');if(n){n.focus();n.setSelectionRange(p,p)}}});
 ACT['fin-settle']=el=>{const e=FIN.d.events.find(x=>x.id===el.dataset.id);if(!e)return;const alvo=e.kind==='ALVO',today=new Date(Date.now()-4*3600e3).toISOString().slice(0,10);
