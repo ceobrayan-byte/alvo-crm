@@ -63,3 +63,7 @@ DO $$ DECLARE f text; BEGIN
     EXECUTE format('REVOKE ALL ON FUNCTION %s FROM PUBLIC, anon', f);
     EXECUTE format('GRANT EXECUTE ON FUNCTION %s TO authenticated', f);
   END LOOP; END $$;
+
+-- Base fria do Floot (103.274 contatos) transferida em 20/11/2026 direto da VM do Floot para cold_contacts,
+-- por uma função temporária protegida por código de uso único (tmp_import_cold), removida logo depois.
+-- Equipe: crm_team esconde EXCLUIDO; crm_member_edit (editar dados, desativar/reativar, excluir preservando histórico).

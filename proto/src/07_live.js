@@ -176,7 +176,7 @@ async function loadOrg(orgId,me,b){
   const cycleIso=isoDay(CYCLE.start);
   /* equipe */
   const users0=team.map(m=>({id:m.id,team_id:m.team_id||null,name:m.name,cargo:m.job_title||RK[m.role]||m.role,team:m.team||'—',role:RK[m.role]||m.role,sell:m.is_seller!==false&&!['SUPORTE','FINANCEIRO'].includes(m.role),
-    status:m.status==='ATIVO'?'Ativo':'Inativo',email:m.email||'',last:m.last_access_at?new Date(m.last_access_at):new Date(0)}));
+    status:m.status==='ATIVO'?'Ativo':'Inativo',email:m.email||'',phone:m.phone||'',job:m.job_title||'',last:m.last_access_at?new Date(m.last_access_at):new Date(0)}));
   const myTeam=(team.find(m=>m.id===me.user.id)||{}).team_id||null;
   const users=me.data_scope==='EQUIPE'?users0.filter(u=>u.id===me.user.id||(myTeam&&u.team_id===myTeam)):users0;
   if(!users.some(u=>u.id===me.user.id))users.unshift({id:me.user.id,name:me.user.name,cargo:RK[me.role]||me.role,team:'—',role:RK[me.role]||me.role,sell:true,status:'Ativo',email:me.user.email||'',last:new Date()});
@@ -411,6 +411,24 @@ CHG.urole=async el=>{const u=user(el.dataset.id),key=RKI[el.value];if(!key){redr
 CHG.uteam=async el=>{const u=user(el.dataset.id),t=(O().teams||[]).find(x=>x.name===el.value);
   const ok=await guarded(async()=>{await rpc('crm_member_update',{p_org:S.orgId,p_user:u.id,p_role:null,p_team:t?t.id:''});await reload()});
   if(ok)toast(`<b>${esc(fname(u.name))}</b> agora em: ${esc(t?t.name:'sem equipe')}`,{icon:'users'});redrawDrawer()};
+
+/* ----- equipe: editar nome/contato, desativar/reativar e excluir (gravado no banco) ----- */
+{const UD0=userDrawer;userDrawer=function(id){const h=UD0(id);if(!LIVE)return h;const u=user(id),can=LV('equipe')>=3;
+  const base=h.replace(/<div class="dr-f">[\s\S]*<\/div>$/,'').replace(/<input class="in" data-chg="ucargo"[^>]*>/,`<input class="in" value="${esc(u.cargo)}" disabled>`);
+  if(!can)return base;
+  return base+`<div class="dr-f"><button class="btn" data-act="u-edit" data-id="${id}">${ic('pencil')}Editar dados</button>${id!==ME&&u.role!=='Proprietário'?`<button class="btn" data-act="u-toggle" data-id="${id}">${ic(u.status==='Ativo'?'user-x':'user-check')}${u.status==='Ativo'?'Desativar':'Reativar'}</button><button class="btn" style="color:var(--bad)" data-act="u-del" data-id="${id}">${ic('trash-2')}Excluir</button>`:''}</div>`}}
+ACT['u-edit']=el=>{const u=user(el.dataset.id);
+  dialog({title:'Editar dados',sub:esc(u.name),submit:'Salvar',body:`<div class="g" style="grid-template-columns:1fr 1fr;gap:12px"><label class="fld">Nome<input class="in" name="name" required maxlength="120" value="${esc(u.name)}"></label><label class="fld">Cargo / função<input class="in" name="job_title" maxlength="80" value="${esc(u.job||'')}" placeholder="${esc(u.role)}"></label>
+   <label class="fld">E-mail de acesso<input class="in" type="email" name="email" value="${esc(u.email||'')}"></label><label class="fld">Telefone<input class="in" name="phone" value="${esc(u.phone||'')}"></label></div><div class="xs muted">O e-mail é o login da pessoa. Vendas, comissões e leads continuam vinculados.</div>`,
+   onSubmit:dlgAsync(async f=>{await rpc('crm_member_edit',{p_org:S.orgId,p_user:u.id,p_data:{action:'save',name:f.name,email:f.email,phone:f.phone,job_title:f.job_title}});await reload();toast('Dados atualizados',{icon:'check'});LS.after=()=>{refresh();if(S.ui.drawer)redrawDrawer()}})})};
+ACT['u-toggle']=async el=>{if(!LIVE)return;const u=user(el.dataset.id),on=u.status!=='Ativo';
+  if(!on&&!confirm(`Desativar ${u.name}? A pessoa perde o acesso, mas o histórico fica.`))return;
+  const ok=await guarded(async()=>{await rpc('crm_member_edit',{p_org:S.orgId,p_user:u.id,p_data:{action:on?'activate':'deactivate'}});await reload()});
+  if(ok)toast(`${esc(fname(u.name))} ${on?'reativado(a)':'desativado(a)'}`,{icon:'user-check'});if(S.ui.drawer)redrawDrawer()};
+ACT['u-del']=async el=>{const u=user(el.dataset.id);
+  if(!confirm(`Excluir ${u.name} da equipe? A pessoa some das listas e perde o acesso. Vendas, comissões e leads antigos continuam preservados.`))return;
+  const ok=await guarded(async()=>{await rpc('crm_member_edit',{p_org:S.orgId,p_user:u.id,p_data:{action:'remove'}});await reload()});
+  if(ok){toast(`${esc(fname(u.name))} excluído(a) da equipe`,{icon:'trash-2'});closeAll()}};
 
 /* ----- início ----- */
 /* os módulos Leads, Clientes e Financeiro (06z_*) usam estas funções: precisam estar visíveis fora deste bloco */

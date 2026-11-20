@@ -8,7 +8,7 @@ function glPanel(){
   const cyc=all.find(c=>c.key===GL.cyc),can=LV('metas')>=3;
   const g=(t,id)=>{const x=d.goals.find(y=>y.scope_type===t&&y.scope_id===id&&String(y.start).slice(0,10)===cyc.key);return x?Number(x.target):null};
   const real=id=>d.sales.filter(s=>{const t=dxDay(s.date);return s.seller===id&&t>=cyc.start&&t<=cyc.end}).reduce((a,s)=>a+Number(s.credit||0),0);
-  const people=d.members.filter(m=>!['SUPORTE','FINANCEIRO'].includes(m.role)&&m.status!=='INATIVO');
+  const people=d.members.filter(m=>!['SUPORTE','FINANCEIRO'].includes(m.role)&&m.status==='ATIVO');
   const inp=(t,id,v)=>can?`<input class="in num" style="width:150px" type="number" step="1000" min="0" data-goal="${t}|${esc(id)}" value="${v??''}" placeholder="sem meta">`:`<span class="num">${v!=null?esc(dxM(v)):'—'}</span>`;
   const sumInd=people.reduce((a,m)=>a+(g('USER',m.id)||0),0);
   return`<div class="card col" style="gap:12px"><div class="row sp wrap"><div><div class="eyebrow">Metas do ciclo</div><b>${can?'Defina as metas de cada pessoa e da empresa':'Metas definidas pela diretoria'}</b></div>
@@ -37,7 +37,7 @@ function glRanking(){
   const val=list=>GL.met==='vendas'?list.length:list.reduce((a,s)=>a+Number(s.credit||0),0);
   const fmt=v=>GL.met==='vendas'?v+' venda'+(v===1?'':'s'):dxM(v);
   let groups=[];
-  if(GL.dim==='seller'){const ids=[...new Set(d.members.filter(m=>!['SUPORTE','FINANCEIRO'].includes(m.role)&&(m.status!=='INATIVO'||ug(m.id)>0)).map(m=>m.id).concat(sales.map(s=>s.seller)))];
+  if(GL.dim==='seller'){const ids=[...new Set(d.members.filter(m=>!['SUPORTE','FINANCEIRO'].includes(m.role)&&(m.status==='ATIVO'||ug(m.id)>0)).map(m=>m.id).concat(sales.map(s=>s.seller)))];
     groups=ids.map(id=>({id,label:dxName(id),sub:(d.teams.find(t=>t.id===dxMem(id).team_id)||{}).name||'',ids:[id]}))}
   else if(GL.dim==='team'){groups=d.teams.map(t=>({id:t.id,label:t.coordinator?dxName(t.coordinator):t.name,sub:t.name,ids:d.members.filter(m=>m.team_id===t.id).map(m=>m.id)}))}
   else{groups=d.regions.map(r=>({id:r.id,label:r.name,sub:'',ids:d.members.filter(m=>m.region_id===r.id).map(m=>m.id)})).filter(g=>g.ids.length)}

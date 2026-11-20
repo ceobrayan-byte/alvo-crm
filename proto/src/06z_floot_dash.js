@@ -40,7 +40,7 @@ const dxUG=(id,c)=>{if(!c)return null;const g=DX.d.goals.find(x=>x.scope_type===
 const dxInFilter=id=>{const m=dxMem(id);return(DX.seller==='all'||id===DX.seller)&&(DX.team==='all'||m.team_id===DX.team)&&(DX.region==='all'||m.region_id===DX.region)};
 function dxFilterSales(range){return DX.d.sales.filter(s=>{const t=dxDay(s.date);return t>=range.start&&t<=range.end&&dxInFilter(s.seller)})}
 /* quem entra na corrida: vendedores/coordenadores/escritório do filtro; inativos só se tiverem meta ou venda no período */
-function dxPeople(c,sales){return DX.d.members.filter(m=>!['SUPORTE','FINANCEIRO'].includes(m.role)&&dxInFilter(m.id)&&(m.status!=='INATIVO'||(dxUG(m.id,c)||0)>0||sales.some(s=>s.seller===m.id))).map(m=>m.id)
+function dxPeople(c,sales){return DX.d.members.filter(m=>!['SUPORTE','FINANCEIRO'].includes(m.role)&&dxInFilter(m.id)&&(m.status==='ATIVO'||(dxUG(m.id,c)||0)>0||sales.some(s=>s.seller===m.id))).map(m=>m.id)
   .concat([...new Set(sales.map(s=>s.seller))].filter(id=>!DX.d.members.some(m=>m.id===id)))}
 function dxGoal(c){if(!c)return null;const sales=dxFilterSales(c),ids=dxPeople(c,sales),g=ids.reduce((a,id)=>a+(dxUG(id,c)||0),0);return g>0?g:null}
 /* ---------- gráficos ---------- */
@@ -107,7 +107,7 @@ function dxExecView(){
   const rankR=regions.map(r=>{const ids=d.members.filter(m=>m.region_id===r.id).map(m=>m.id),ss=sales.filter(s=>ids.includes(s.seller));return{label:r.name,v:dxSum(ss),n:ss.length,g:custom?null:(ids.reduce((a,id)=>a+(dxUG(id,cyc)||0),0)||null)}}).filter(r=>r.v||r.g).sort((a,b)=>b.v-a.v);
   const byAdm={};sales.forEach(s=>{const k=s.adm||'—';byAdm[k]=byAdm[k]||{v:0,n:0};byAdm[k].v+=Number(s.credit||0);byAdm[k].n++});
   const rankA=Object.entries(byAdm).map(([k,x])=>({label:k,v:Math.round(x.v*100)/100,n:x.n})).sort((a,b)=>b.v-a.v);
-  const sellersSel=[...new Set(d.members.filter(m=>!['SUPORTE','FINANCEIRO'].includes(m.role)&&(DX.team==='all'||m.team_id===DX.team)&&(m.status!=='INATIVO'||d.sales.some(s=>s.seller===m.id))).map(m=>m.id))].sort((a,b)=>dxName(a).localeCompare(dxName(b),'pt-BR'));
+  const sellersSel=[...new Set(d.members.filter(m=>!['SUPORTE','FINANCEIRO'].includes(m.role)&&(DX.team==='all'||m.team_id===DX.team)&&(m.status==='ATIVO'||d.sales.some(s=>s.seller===m.id))).map(m=>m.id))].sort((a,b)=>dxName(a).localeCompare(dxName(b),'pt-BR'));
   const status=custom?'período personalizado':isNow?`dia ${dayN} de ${days} · ${daysLeft} dia(s) para fechar`:'encerrado';
   const tone=pct==null?'':pct>=1?'ok':expected&&real>=expected?'ok':isNow?'warn':'bad';
   const list=sales.slice().sort((a,b)=>String(b.date).localeCompare(String(a.date))||String(b.id).localeCompare(String(a.id)));
