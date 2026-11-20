@@ -20,7 +20,7 @@ function finRows(kind){
 function finToolbar(kind){
   const months=[...new Set(FIN.d.events.filter(e=>e.kind===kind&&e.due_month).map(e=>fMon(e.due_month)))].sort((a,b)=>a.slice(3)+a.slice(0,2)<b.slice(3)+b.slice(0,2)?-1:1);
   return`<div class="row wrap"><select class="in" style="width:170px" data-chg="fin-month" aria-label="Competência"><option value="all">Todas as competências</option>${months.map(m=>`<option ${FIN.month===m?'selected':''}>${m}</option>`).join('')}<option value="sem" ${FIN.month==='sem'?'selected':''}>Sem competência</option></select>
-  ${FIN.d.office||ROLE()==='Coordenador'?`<select class="in" style="width:220px" data-chg="fin-seller" aria-label="Vendedor">${finSellerOpts(kind)}</select>`:''}
+  ${FIN.d.office?`<select class="in" style="width:220px" data-chg="fin-seller" aria-label="Vendedor">${finSellerOpts(kind)}</select>`:''}
   <select class="in" style="width:160px" data-chg="fin-status" aria-label="Situação"><option value="all">Todas as situações</option>${['Prevista',kind==='ALVO'?'Recebida':'Paga'].map(s=>`<option ${FIN.status===s?'selected':''}>${s}</option>`).join('')}</select>
   <label class="search" style="max-width:280px">${ic('search')}<input class="in" style="border:0;background:transparent;height:34px;padding:0" id="finq" placeholder="Cliente, grupo ou cota" value="${esc(FIN.q)}"></label>
   <button class="btn sm end" data-act="fin-export" data-id="${kind}">${ic('download')}Exportar CSV</button></div>`;
@@ -31,7 +31,7 @@ function finSellerOpts(kind){
   return'<option value="all">Todos os vendedores</option>'+Object.entries(by).sort((a,b)=>finName(a[0]).localeCompare(finName(b[0]))).map(([id,n])=>`<option value="${esc(id)}" ${FIN.seller===id?'selected':''}>${esc(finName(id))} (${n})</option>`).join('');
 }
 function finBySeller(kind){
-  if(!(FIN.d.office||ROLE()==='Coordenador'))return'';
+  if(!FIN.d.office)return'';
   const done=kind==='ALVO'?'Recebida':'Paga',by={};
   FIN.d.events.filter(e=>e.kind===kind&&(FIN.month==='all'||fMon(e.due_month)===FIN.month||(FIN.month==='sem'&&!e.due_month))).forEach(e=>{const r=by[e.seller_user_id]=by[e.seller_user_id]||{prev:0,real:0,n:0,cases:new Set()};r.n++;r.cases.add(e.case_id);if(e.status==='Prevista')r.prev+=fN(e.amount);else r.real+=fN(e.actual_amount)});
   const rows=Object.entries(by).sort((a,b)=>(b[1].prev+b[1].real)-(a[1].prev+a[1].real));
@@ -61,10 +61,26 @@ function finRegras(){
   <div class="tbl-wrap"><table class="tbl"><thead><tr><th>Vendedor</th><th>Administradora</th><th>Percentual</th><th>Observação</th></tr></thead><tbody>${d.agreements.map(a=>`<tr><td>${fcUser(a.seller_user_id)}</td><td>${esc(a.platform)}</td><td class="num">${a.percent}%</td><td class="sm">${esc(a.note||'')}</td></tr>`).join('')||'<tr><td colspan="4"><div class="empty">Sem acordos. Vale o percentual padrão da administradora.</div></td></tr>'}</tbody></table></div>
   <div class="eyebrow">Catálogo de regras (${d.catalog.length})</div><div class="tbl-wrap"><table class="tbl"><thead><tr><th>Regra</th><th>Administradora</th><th>Produto</th><th>Plano</th><th>Comissão base</th><th>Eventos</th></tr></thead><tbody>${d.catalog.map(k=>`<tr><td><b>${esc(k.id)}</b></td><td>${esc(k.platform)}</td><td class="sm">${esc(k.product)}</td><td class="sm">${esc(k.plan)}</td><td class="num">${(k.commission_rate*100).toFixed(2)}%</td><td class="sm">${k.events.length}</td></tr>`).join('')}</tbody></table></div>`;
 }
+/* coordenação: só totais da equipe (sem comissão de cada vendedor) e a faixa do coordenador */
+function finCoord(){const c=FIN.d.coord,pol=c.policy||{},ov=pol.override&&typeof pol.override==='object'?pol.override:{};
+  const tiers=(Array.isArray(ov.tiers)&&ov.tiers.length?ov.tiers:pol.tiers||[]).slice().sort((a,b)=>a.attainment-b.attainment),below=Number(ov.below_percent??pol.below_percent??0);
+  const pctFor=att=>{let p=below;tiers.forEach(t=>{if(att*100>=Number(t.attainment))p=Number(t.percent)});return p};
+  const cycles=[];const add=d=>{const k=dxCycle(d);if(!cycles.some(x=>x.key===k.key))cycles.push(k)};add(new Date());(c.team_sales||[]).forEach(x=>add(dxDay(x.date)));cycles.sort((a,b)=>b.start-a.start);
+  const fmtP=v=>String(v).replace('.',',')+'%';
+  const rows=cycles.map(k=>{const ss=(c.team_sales||[]).filter(x=>{const t=dxDay(x.date);return t>=k.start&&t<=k.end}),team=ss.reduce((a,x)=>a+Number(x.credit||0),0),others=ss.filter(x=>!x.mine).reduce((a,x)=>a+Number(x.credit||0),0),
+    g=(c.team_goals||[]).find(x=>String(x.start).slice(0,10)===k.key),goal=g?Number(g.target):0,att=goal?team/goal:0,p=pctFor(att);return{k,team,others,goal,att,p,val:others*p/100}});
+  const cur=rows[0];
+  return`<div class="sm muted">Você vê o total de crédito da sua equipe e a sua remuneração de coordenação. A comissão de cada vendedor é individual e não aparece aqui.</div>
+  <div class="pskpi"><div class="card"><span class="xs muted">Crédito da equipe no ciclo atual</span><b class="num">${esc(dxM(cur.team))}</b><span class="xs muted">${cur.goal?'meta da equipe '+esc(dxM(cur.goal))+' · '+Math.round(cur.att*100)+'%':'sem meta cadastrada'}</span></div>
+   <div class="card"><span class="xs muted">Base da coordenação</span><b class="num">${esc(dxM(cur.others))}</b><span class="xs muted">vendas dos seus vendedores</span></div>
+   <div class="card"><span class="xs muted">Sua faixa atual</span><b class="num">${fmtP(cur.p)}</b><span class="xs muted">sobre o crédito dos vendedores</span></div>
+   <div class="card"><span class="xs muted">Remuneração estimada no ciclo</span><b class="num">${esc(fBRL(Math.round(cur.val*100)/100))}</b><span class="xs muted">a diferença a mais da coordenação</span></div></div>
+  <div class="card"><b class="sm">Faixas da coordenação</b><div class="row wrap" style="gap:8px;margin-top:10px"><span class="bd mute">abaixo de ${tiers.length?tiers[0].attainment:100}% da meta: ${fmtP(below)}</span>${tiers.map(t=>`<span class="bd ${cur.att*100>=t.attainment?'ok':'mute'}">a partir de ${t.attainment}%: ${fmtP(t.percent)}</span>`).join('')}</div><div class="xs muted" style="margin-top:8px">Regra definida pelo proprietário. Valores estimados; o pagamento segue o recebimento da administradora.</div></div>
+  <div class="tbl-wrap"><table class="tbl"><thead><tr><th>Ciclo</th><th>Crédito da equipe</th><th>Meta da equipe</th><th>Atingimento</th><th>Base (vendedores)</th><th>Faixa</th><th>Remuneração estimada</th></tr></thead><tbody>${rows.map(r=>`<tr><td class="sm">${esc(dxCLabel(r.k))}</td><td class="num">${esc(fBRL(r.team))}</td><td class="num">${r.goal?esc(fBRL(r.goal)):'—'}</td><td class="num">${r.goal?Math.round(r.att*100)+'%':'—'}</td><td class="num">${esc(fBRL(r.others))}</td><td class="num">${fmtP(r.p)}</td><td class="num"><b>${esc(fBRL(Math.round(r.val*100)/100))}</b></td></tr>`).join('')}</tbody></table></div>`}
 VIEWS['financeiro']=()=>{
   finLoad();const d=FIN.d,o=O();
   if(!d)return`<div class="pg"><div class="pg-h"><div class="grow"><div class="eyebrow">${esc(o.name)}</div><h2>Financeiro Comercial</h2></div></div><div class="empty">Carregando…</div></div>`;
-  const tabs=d.office?[['alvo','Receita ALVO'],['vend','Repasses a vendedores'],['mens','Mensalidades'],['regras','Regras e acordos']].concat(ROLE()==='Proprietário'?[['gestao','Gestão de comissionamento']]:[]):[['vend',ROLE()==='Coordenador'?'Comissões da equipe':'Minhas comissões']];
+  const tabs=d.office?[['alvo','Receita ALVO'],['vend','Repasses a vendedores'],['mens','Mensalidades'],['regras','Regras e acordos']].concat(ROLE()==='Proprietário'?[['gestao','Gestão de comissionamento']]:[]):[['vend','Minhas comissões']].concat(d.coord?[['coord','Remuneração da coordenação']]:[]);
   if(!tabs.find(t=>t[0]===FIN.tab))FIN.tab=tabs[0][0];
   const A=d.events.filter(e=>e.kind==='ALVO'),V=d.events.filter(e=>e.kind==='VENDEDOR');
   const kp=d.office?[['ALVO a receber',fBRL(fSum(A.filter(e=>e.status==='Prevista'),e=>e.amount))],['ALVO recebido',fBRL(fSum(A.filter(e=>e.status==='Recebida'),e=>e.actual_amount))],['Vendedores a pagar',fBRL(fSum(V.filter(e=>e.status==='Prevista'),e=>e.amount))],['Vendedores pago',fBRL(fSum(V.filter(e=>e.status==='Paga'),e=>e.actual_amount))]]
@@ -72,7 +88,7 @@ VIEWS['financeiro']=()=>{
   return`<div class="pg"><div class="pg-h"><div class="grow"><div class="eyebrow">${esc(o.name)}</div><h2>${vlabel('financeiro')}</h2></div><button class="btn" data-act="fin-reload">${ic('refresh-cw')}Atualizar</button></div>
    <div class="g" style="grid-template-columns:repeat(4,1fr)">${kp.map(([a,b])=>`<div class="card"><div class="xs muted">${a}</div><div class="disp" style="font-size:26px">${b}</div></div>`).join('')}</div>
    <div class="row" role="tablist">${tabs.map(t=>`<button class="btn sm ${FIN.tab===t[0]?'pri':''}" role="tab" data-act="fin-tab" data-id="${t[0]}">${t[1]}</button>`).join('')}</div>
-   ${FIN.tab==='alvo'?finTable('ALVO'):FIN.tab==='vend'?finTable('VENDEDOR'):FIN.tab==='mens'?finMens():FIN.tab==='gestao'?caView():finRegras()}</div>`;
+   ${FIN.tab==='coord'?finCoord():FIN.tab==='alvo'?finTable('ALVO'):FIN.tab==='vend'?finTable('VENDEDOR'):FIN.tab==='mens'?finMens():FIN.tab==='gestao'?caView():finRegras()}</div>`;
 };
 ACT['fin-tab']=el=>{FIN.tab=el.dataset.id;FIN.status='all';refresh()};
 ACT['fin-reload']=async()=>{await finLoad(true);toast('Financeiro atualizado',{icon:'refresh-cw'})};

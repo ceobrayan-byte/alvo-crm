@@ -31,8 +31,12 @@ function pvFilter(fn,d){
   if(fn==='crm_cases_list')return office?d:(d||[]).filter(c=>pvVis(c.seller_user_id));
   if(fn==='crm_customers_list'){if(office)return d;return(d||[]).map(c=>Object.assign({},c,{cases:(c.cases||[]).filter(k=>pvVis(k.seller_user_id))})).filter(c=>pvVis(c.owner_user_id)||c.cases.length)}
   if(fn==='crm_fin_list'&&d){if(office)return Object.assign({},d,{admin,agreements:admin?d.agreements:[]});
-    const cases=(d.cases||[]).filter(c=>pvVis(c.seller_user_id)),ids=new Set(cases.map(c=>c.id));
-    return Object.assign({},d,{office:false,admin,cases,events:(d.events||[]).filter(e=>e.kind==='VENDEDOR'&&pvVis(e.seller_user_id)),installments:(d.installments||[]).filter(i=>ids.has(i.case_id)),agreements:admin?d.agreements:[]})}
+    const cases=(d.cases||[]).filter(c=>c.seller_user_id===PV.id),ids=new Set(cases.map(c=>c.id)),team=(PV.team||{})[PV.id];
+    let coord=null;if(PV.roleKey==='GESTOR'&&team){const mates=Object.entries(PV.team||{}).filter(([,t])=>t===team).map(([u])=>u);
+      const pol=(typeof CA!=='undefined'&&CA.d&&CA.d.policy)||{};coord={team_id:team,policy:{below_percent:(pol.coordinator||{}).below_percent,tiers:(pol.coordinator||{}).tiers||[],override:(pol.coordinator_overrides||{})[PV.id]},
+        team_sales:(d.cases||[]).filter(c=>mates.includes(c.seller_user_id)&&c.rule_id&&c.sale_date).map(c=>({seller:c.seller_user_id,mine:c.seller_user_id===PV.id,credit:c.credit,date:c.sale_date})),
+        team_goals:(()=>{const g=(typeof DX!=='undefined'&&DX.d&&DX.d.goals)||[],by={};g.filter(x=>x.scope_type==='USER'&&mates.includes(x.scope_id)).forEach(x=>{const k=String(x.start).slice(0,10);by[k]=(by[k]||0)+Number(x.target||0)});return Object.entries(by).map(([start,target])=>({start,target}))})()}}
+    return Object.assign({},d,{office:false,admin,cases,coord,events:(d.events||[]).filter(e=>e.kind==='VENDEDOR'&&e.seller_user_id===PV.id),installments:(d.installments||[]).filter(i=>ids.has(i.case_id)),agreements:admin?d.agreements:[]})}
   return d;
 }
 const rpc=async(fn,args)=>{
