@@ -1743,15 +1743,17 @@ const fcStatusBd=c=>`<span class="bd ${c.status==='Efetivado'?'ok':c.status==='D
 const fcDate=d=>d?String(d).slice(0,10).split('-').reverse().join('/'):'—';
 
 /* ---- Clientes ---- */
+const fcEf=k=>k.status==='Efetivado';
+const fcCusts=()=>FC.custs.filter(c=>(c.cases||[]).some(fcEf));
 VIEWS['clientes']=()=>{
   fcLoad();
-  const q=nrm(FC.q),rows=FC.custs.filter(c=>!q||nrm(c.name).includes(q)||String(c.cpf_cnpj||'').includes(q.replace(/\D/g,'')||'§')||String(c.phone||'').includes(q.replace(/\D/g,'')||'§'));
-  const cotas=FC.custs.reduce((a,c)=>a+(c.cases||[]).length,0),cred=FC.custs.reduce((a,c)=>a+(c.cases||[]).reduce((s,k)=>s+Number(k.credit||0),0),0),pend=FC.cases.filter(k=>!fcDone(k)).length;
+  const custs=fcCusts(),q=nrm(FC.q),rows=custs.filter(c=>!q||nrm(c.name).includes(q)||String(c.cpf_cnpj||'').includes(q.replace(/\D/g,'')||'§')||String(c.phone||'').includes(q.replace(/\D/g,'')||'§'));
+  const cotas=custs.reduce((a,c)=>a+(c.cases||[]).filter(fcEf).length,0),cred=custs.reduce((a,c)=>a+(c.cases||[]).filter(fcEf).reduce((s,k)=>s+Number(k.credit||0),0),0),pend=custs.reduce((a,c)=>a+(c.cases||[]).filter(k=>!fcEf(k)).length,0);
   return`<div class="pg"><div class="pg-h"><div class="grow"><div class="eyebrow">${esc(O().name)}</div><h2>${isOffice()?'Clientes / CRM Global':'Minha carteira'}</h2></div>
    ${isOffice()?`<button class="btn pri" data-act="case-manual">${ic('plus')}Nova operação</button>`:''}</div>
-   <div class="g" style="grid-template-columns:repeat(4,1fr)">${[['Clientes',FC.custs.length],['Cotas',cotas],['Crédito em carteira',fBRL(cred)],['Operações em andamento',pend]].map(([a,b])=>`<div class="card"><div class="xs muted">${a}</div><div class="disp" style="font-size:26px">${b}</div></div>`).join('')}</div>
+   <div class="g" style="grid-template-columns:repeat(4,1fr)">${[['Clientes',custs.length],['Cotas efetivadas',cotas],['Crédito em carteira',fBRL(cred)],['Nova cota em andamento',pend]].map(([a,b])=>`<div class="card"><div class="xs muted">${a}</div><div class="disp" style="font-size:26px">${b}</div></div>`).join('')}</div>
    <label class="search" style="max-width:420px">${ic('search')}<input class="in" style="border:0;background:transparent;height:34px;padding:0" id="custq" placeholder="Buscar por nome, CPF/CNPJ ou telefone" value="${esc(FC.q)}"></label>
-   <div class="tbl-wrap"><table class="tbl"><thead><tr><th>Cliente</th><th>Contato</th><th>Cotas</th><th>Crédito</th><th>Consultor</th><th></th></tr></thead><tbody>${rows.map(c=>{const ks=c.cases||[];return`<tr data-act="cust-open" data-id="${c.id}" style="cursor:pointer"><td><b>${esc(c.name)}</b><div class="xs muted">${esc(c.cpf_cnpj||'')}</div></td><td class="sm">${esc(fmtPhone(c.phone)||'—')}</td><td>${ks.length}</td><td class="num">${fBRL(ks.reduce((s,k)=>s+Number(k.credit||0),0))}</td><td class="sm">${fcUser(c.owner_user_id)}</td><td>${ks.some(k=>!fcDone(k))?'<span class="bd warn">Em andamento</span>':ks.length?'<span class="bd ok">Efetivado</span>':''}</td></tr>`}).join('')||`<tr><td colspan="6"><div class="empty">${FC.loading?'Carregando…':'Nenhum cliente. Efetive uma venda no Kanban para criar o primeiro.'}</div></td></tr>`}</tbody></table></div></div>`;
+   <div class="tbl-wrap"><table class="tbl"><thead><tr><th>Cliente</th><th>Contato</th><th>Cotas</th><th>Crédito</th><th>Consultor</th><th></th></tr></thead><tbody>${rows.map(c=>{const all=c.cases||[],ks=all.filter(fcEf),op=all.length-ks.length;return`<tr data-act="cust-open" data-id="${c.id}" style="cursor:pointer"><td><b>${esc(c.name)}</b><div class="xs muted">${esc(c.cpf_cnpj||'')}</div></td><td class="sm">${esc(fmtPhone(c.phone)||'—')}</td><td>${ks.length}</td><td class="num">${fBRL(ks.reduce((s,k)=>s+Number(k.credit||0),0))}</td><td class="sm">${fcUser(c.owner_user_id)}</td><td><span class="bd ok">Efetivado</span>${op?` <span class="bd warn">+${op} em andamento</span>`:''}</td></tr>`}).join('')||`<tr><td colspan="6"><div class="empty">${FC.loading?'Carregando…':'Nenhum cliente. Efetive uma venda no Kanban para criar o primeiro.'}</div></td></tr>`}</tbody></table></div></div>`;
 };
 document.addEventListener('input',ev=>{if(ev.target.id==='custq'){FC.q=ev.target.value;const p=ev.target.selectionStart;refresh();const n=$('#custq');if(n){n.focus();n.setSelectionRange(p,p)}}
   if(ev.target.id==='opq'){FC.sq=ev.target.value;const p=ev.target.selectionStart;refresh();const n=$('#opq');if(n){n.focus();n.setSelectionRange(p,p)}}});
@@ -1762,7 +1764,8 @@ function custDrawer(id){
   const c=FC.custs.find(x=>x.id===id);if(!c)return'';
   return`<div class="dr-h">${avN(c.name,48)}<div class="grow"><div class="eyebrow">Ficha do cliente</div><h3 class="disp" style="font-size:26px;margin-top:2px">${esc(c.name)}</h3><div class="sm muted">Consultor: ${fcUser(c.owner_user_id)}</div></div><button class="ibtn" data-act="close" aria-label="Fechar">${ic("x")}</button></div>
   <div class="dr-b"><div><div class="eyebrow" style="margin-bottom:8px">Cadastro</div><div class="col" style="gap:6px">${fRow('CPF/CNPJ',esc(c.cpf_cnpj))}${fRow('Telefone',esc(fmtPhone(c.phone)))}${fRow('E-mail',esc(c.email))}${fRow('Observações',esc(c.notes))}</div></div>
-   <div><div class="eyebrow" style="margin-bottom:8px">Cotas e operações (${(c.cases||[]).length})</div><div class="col" style="gap:8px">${(c.cases||[]).map(k=>`<div data-act="case-open" data-id="${k.id}" style="cursor:pointer">${caseLine(k)}</div>`).join('')||'<div class="empty xs">Sem cotas ainda.</div>'}</div></div></div>
+   <div><div class="eyebrow" style="margin-bottom:8px">Cotas efetivadas (${(c.cases||[]).filter(fcEf).length})</div><div class="col" style="gap:8px">${(c.cases||[]).filter(fcEf).map(k=>`<div data-act="case-open" data-id="${k.id}" style="cursor:pointer">${caseLine(k)}</div>`).join('')||'<div class="empty xs">Sem cotas efetivadas.</div>'}</div></div>
+   ${(c.cases||[]).some(k=>!fcEf(k))?`<div><div class="eyebrow" style="margin-bottom:8px">Em andamento no suporte (${(c.cases||[]).filter(k=>!fcEf(k)).length})</div><div class="col" style="gap:8px">${(c.cases||[]).filter(k=>!fcEf(k)).map(k=>`<div data-act="case-open" data-id="${k.id}" style="cursor:pointer;opacity:.85">${caseLine(k)}</div>`).join('')}</div><div class="xs muted" style="margin-top:6px">Vira cota do cliente quando for efetivada.</div></div>`:''}</div>
   <div class="dr-f"><button class="btn" data-act="cust-edit" data-id="${c.id}">${ic('pencil')}Editar cadastro</button><button class="btn pri" data-act="cust-sale" data-id="${c.id}">${ic('plus')}Nova venda</button></div>`;
 }
 ACT['cust-open']=el=>openDrawer(()=>custDrawer(el.dataset.id));
@@ -1777,10 +1780,10 @@ ACT['cust-edit']=el=>{const c=FC.custs.find(x=>x.id===el.dataset.id);if(!c)retur
 /* ---- Suporte / Operacional ---- */
 VIEWS['suporte']=()=>{
   fcLoad();
-  const q=nrm(FC.sq),rows=FC.cases.filter(k=>(FC.st==='all'||k.status===FC.st)&&(!q||nrm(k.client_name).includes(q)||nrm(k.quota).includes(q)||nrm(k.grp).includes(q)));
+  const q=nrm(FC.sq),rows=FC.cases.filter(k=>!fcEf(k)&&(FC.st==='all'||k.status===FC.st)&&(!q||nrm(k.client_name).includes(q)||nrm(k.quota).includes(q)||nrm(k.grp).includes(q)));
   return`<div class="pg"><div class="pg-h"><div class="grow"><div class="eyebrow">${esc(O().name)}</div><h2>Suporte / Operacional</h2></div>${isOffice()?`<button class="btn pri" data-act="case-manual">${ic('plus')}Nova operação</button>`:''}</div>
-   <div class="row wrap"><select class="in" style="width:220px" data-chg="fc-st"><option value="all">Todas as situações</option>${CSTAT.map(s=>`<option ${FC.st===s?'selected':''}>${s}</option>`).join('')}</select>
-   <label class="search" style="max-width:360px">${ic('search')}<input class="in" style="border:0;background:transparent;height:34px;padding:0" id="opq" placeholder="Cliente, grupo ou cota" value="${esc(FC.sq)}"></label><span class="end sm muted">${rows.length} operações</span></div>
+   <div class="row wrap"><select class="in" style="width:220px" data-chg="fc-st"><option value="all">Todas as situações</option>${CSTAT.filter(s=>s!=='Efetivado').map(s=>`<option ${FC.st===s?'selected':''}>${s}</option>`).join('')}</select>
+   <label class="search" style="max-width:360px">${ic('search')}<input class="in" style="border:0;background:transparent;height:34px;padding:0" id="opq" placeholder="Cliente, grupo ou cota" value="${esc(FC.sq)}"></label><span class="end sm muted">${rows.length} operação(ões) pendente(s) · as efetivadas ficam em Clientes</span></div>
    <div class="tbl-wrap"><table class="tbl"><thead><tr><th>Cliente</th><th>Consultor</th><th>Produto / crédito</th><th>Administradora · grupo/cota</th><th>Docs</th><th>1ª parcela</th><th>Situação</th></tr></thead><tbody>${rows.map(k=>`<tr data-act="case-open" data-id="${k.id}" style="cursor:pointer"><td><b>${esc(k.client_name)}</b>${k.manual?' <span class="bd mute">manual</span>':''}</td><td class="sm">${fcUser(k.seller_user_id)}</td><td class="sm">${esc(k.product||'—')}<div class="xs num">${fBRL(k.credit)}</div></td><td class="sm">${esc(k.admin||'—')}<div class="xs muted">${esc(k.grp||'—')} / ${esc(k.quota||'—')}</div></td><td>${k.docs==='Completo'?'<span class="bd ok">Completo</span>':'<span class="bd warn">Pendente</span>'}</td><td>${k.first_payment==='Pago'?'<span class="bd ok">Pago</span>':'<span class="bd mute">Pendente</span>'}</td><td>${fcStatusBd(k)}</td></tr>`).join('')||`<tr><td colspan="7"><div class="empty">${FC.loading?'Carregando…':'Nenhuma operação.'}</div></td></tr>`}</tbody></table></div></div>`;
 };
 CHG['fc-st']=el=>{FC.st=el.value;refresh()};
@@ -2625,7 +2628,7 @@ document.addEventListener('change',async ev=>{
    Acompanha cada cota vendida (efetivada) até a contemplação e a liberação do crédito.
    Substitui o antigo pipeline Comercial/Reativação/Pós-venda (o comercial fica só em Funis). */
 const PS={d:null,loading:false,orgFor:null,q:'',seller:'all',adm:'all',st:'all'};
-const PS_ST=[['aguardando','Aguardando contemplação','hourglass'],['contemplada','Contemplada','party-popper'],['analise','Crédito em análise','file-search'],['liberado','Crédito liberado','badge-check'],['cancelada','Cancelada / desistente','circle-x']];
+const PS_ST=[['contemplada','Contemplada','party-popper'],['analise','Crédito em análise','file-search'],['liberado','Crédito liberado','badge-check'],['cancelada','Cancelada / desistente','circle-x']];
 const PS_MODES=['Sorteio','Lance livre','Lance fixo','Lance embutido'];
 const psStage=c=>(c.ps&&c.ps.stage)||'aguardando';
 const psDate=s=>s?String(s).slice(0,10).split('-').reverse().join('/'):'—';
@@ -2646,19 +2649,19 @@ function psCard(c){const st=psStage(c),p=c.ps||{};
 VIEWS['funis']=()=>{
   if(!LIVE)return'<div class="pg"><div class="empty">Disponível no CRM conectado.</div></div>';
   psLoad();const o=O();
-  if(!PS.d)return`<div class="pg"><div class="pg-h"><div class="grow"><div class="eyebrow">${esc(o.name)}</div><h2>Negócios · pós-venda</h2></div></div><div class="card"><div class="xs muted">Carregando cotas…</div></div></div>`;
-  const items=PS.d.items||[],q=PS.q.trim().toLowerCase();
+  if(!PS.d)return`<div class="pg"><div class="pg-h"><div class="grow"><div class="eyebrow">${esc(o.name)}</div><h2>Negócios · cotas contempladas</h2></div></div><div class="card"><div class="xs muted">Carregando cotas…</div></div></div>`;
+  const items=(PS.d.items||[]).filter(c=>psStage(c)!=='aguardando'),q=PS.q.trim().toLowerCase();
   const list=items.filter(c=>(PS.seller==='all'||c.seller===PS.seller)&&(PS.adm==='all'||c.adm===PS.adm)&&(PS.st==='all'||psStage(c)===PS.st)&&(!q||[c.client,c.grp,c.quota,c.adm].some(x=>String(x||'').toLowerCase().includes(q))));
   const sum=a=>a.reduce((t,c)=>t+Number(c.credit||0),0);
   const by=k=>list.filter(c=>psStage(c)===k);
   const sellers=[...new Set(items.map(c=>c.seller))].sort((a,b)=>psName(a).localeCompare(psName(b),'pt-BR')),adms=[...new Set(items.map(c=>c.adm).filter(Boolean))].sort();
   const cont=list.filter(c=>['contemplada','analise','liberado'].includes(psStage(c)));
-  return`<div class="pg" style="height:100%"><div class="pg-h"><div class="grow"><div class="eyebrow">${esc(o.name)} · acompanhamento após a venda</div><h2>Negócios · pós-venda</h2></div>
-    <button class="btn sm" data-act="ps-reload">${ic('refresh-cw')}Atualizar</button></div>
+  return`<div class="pg" style="height:100%"><div class="pg-h"><div class="grow"><div class="eyebrow">${esc(o.name)} · acompanhamento após a venda</div><h2>Negócios · cotas contempladas</h2></div>
+    <button class="btn sm" data-act="ps-reload">${ic('refresh-cw')}Atualizar</button>${PS.d.can_edit?`<button class="btn pri" data-act="ps-new">${ic('party-popper')}Registrar contemplação</button>`:''}</div>
    <div class="pskpi">
-    <div class="card"><span class="xs muted">Cotas ativas</span><b class="num">${list.filter(c=>psStage(c)!=='cancelada').length}</b><span class="xs muted">${esc(dxM(sum(list.filter(c=>psStage(c)!=='cancelada'))))} em crédito</span></div>
-    <div class="card"><span class="xs muted">Aguardando contemplação</span><b class="num">${by('aguardando').length}</b><span class="xs muted">${esc(dxM(sum(by('aguardando'))))}</span></div>
-    <div class="card"><span class="xs muted">Contempladas</span><b class="num">${cont.length}</b><span class="xs muted">${list.length?Math.round(cont.length/Math.max(1,list.filter(c=>psStage(c)!=='cancelada').length)*100)+'% das cotas ativas':'—'}</span></div>
+    <div class="card"><span class="xs muted">Cotas contempladas</span><b class="num">${list.filter(c=>psStage(c)!=='cancelada').length}</b><span class="xs muted">${esc(dxM(sum(list.filter(c=>psStage(c)!=='cancelada'))))} em crédito</span></div>
+    <div class="card"><span class="xs muted">Recém-contempladas</span><b class="num">${by('contemplada').length}</b><span class="xs muted">${esc(dxM(sum(by('contemplada'))))}</span></div>
+    <div class="card"><span class="xs muted">Crédito em análise</span><b class="num">${by('analise').length}</b><span class="xs muted">${esc(dxM(sum(by('analise'))))}</span></div>
     <div class="card"><span class="xs muted">Crédito liberado</span><b class="num">${esc(dxM(sum(by('liberado'))))}</b><span class="xs muted">${by('liberado').length} cota(s)</span></div>
    </div>
    <div class="row wrap" style="gap:8px">
@@ -2675,16 +2678,16 @@ VIEWS['funis']=()=>{
 ACT['ps-reload']=async()=>{await psLoad(true);toast('Pós-venda atualizado',{icon:'refresh-cw'})};
 CHG['ps-seller']=el=>{PS.seller=el.value;refresh()};CHG['ps-adm']=el=>{PS.adm=el.value;refresh()};CHG['ps-st']=el=>{PS.st=el.value;refresh()};
 document.addEventListener('input',ev=>{const t=ev.target;if(t&&t.dataset&&t.dataset.inp==='ps-q'){PS.q=t.value;clearTimeout(PS.t);PS.t=setTimeout(()=>{const pos=t.selectionStart;refresh();const n=document.querySelector('[data-inp="ps-q"]');if(n){n.focus();try{n.setSelectionRange(pos,pos)}catch(e){}}},250)}});
-ACT['ps-open']=el=>{const c=(PS.d.items||[]).find(x=>x.id===el.dataset.id);if(!c)return;const p=c.ps||{},st=psStage(c),can=PS.d.can_edit;
+ACT['ps-open']=el=>{const c=(PS.d.items||[]).find(x=>x.id===el.dataset.id);if(!c)return;const p=c.ps||{},st=psStage(c)==='aguardando'?'contemplada':psStage(c),can=PS.d.can_edit;
   const info=`<div class="g sm" style="grid-template-columns:1fr 1fr;gap:6px 16px">
     <div><span class="xs muted">Cliente</span><div><b>${esc(c.client||'—')}</b></div></div><div><span class="xs muted">Vendedor</span><div>${esc(psName(c.seller))}</div></div>
     <div><span class="xs muted">Administradora / produto</span><div>${esc(c.adm||'—')} · ${esc(c.product||'—')}</div></div><div><span class="xs muted">Grupo / cota</span><div class="num">${esc(c.grp||'—')} / ${esc(c.quota||'—')}</div></div>
     <div><span class="xs muted">Crédito</span><div class="num"><b>${esc(fBRL(c.credit))}</b>${c.term?` · ${c.term} meses`:''}</div></div><div><span class="xs muted">Data da venda</span><div>${esc(psDate(c.date))}</div></div></div>`;
-  const log=(p.log||[]).slice().reverse().map(x=>`<div class="xs muted">${esc(new Date(x.at).toLocaleString('pt-BR',{dateStyle:'short',timeStyle:'short'}))} · ${esc(x.by||'')}: ${esc((PS_ST.find(s=>s[0]===x.from)||[,x.from])[1])} → ${esc((PS_ST.find(s=>s[0]===x.to)||[,x.to])[1])}</div>`).join('');
+  const log=(p.log||[]).slice().reverse().map(x=>`<div class="xs muted">${esc(new Date(x.at).toLocaleString('pt-BR',{dateStyle:'short',timeStyle:'short'}))} · ${esc(x.by||'')}: ${esc(x.from==='aguardando'?'Aguardando':(PS_ST.find(s=>s[0]===x.from)||[,x.from])[1])} → ${esc(x.to==='aguardando'?'Aguardando':(PS_ST.find(s=>s[0]===x.to)||[,x.to])[1])}</div>`).join('');
   if(!can){dialog({title:'Cota '+(c.quota||''),sub:esc((PS_ST.find(s=>s[0]===st)||[])[1]||''),submit:'Fechar',body:info+(p.contemplated_on?`<div class="sm" style="margin-top:10px">Contemplada em ${esc(psDate(p.contemplated_on))} · ${esc(p.mode||'')}${p.bid_pct!=null?' · lance '+p.bid_pct+'%':''}</div>`:'')+(p.note?`<div class="sm" style="margin-top:6px">${esc(p.note)}</div>`:'')+(log?`<div style="margin-top:12px">${log}</div>`:''),onSubmit:()=>{closeModal&&closeModal()}});return}
   dialog({title:'Acompanhar cota',sub:esc(c.client||''),submit:'Salvar',wide:true,body:info+`
    <div class="g" style="grid-template-columns:1fr 1fr;gap:12px;margin-top:14px">
-    <label class="fld">Situação<select class="in" name="stage">${PS_ST.map(([k,l])=>`<option value="${k}" ${st===k?'selected':''}>${l}</option>`).join('')}</select></label>
+    <label class="fld">Situação<select class="in" name="stage">${PS_ST.map(([k,l])=>`<option value="${k}" ${st===k?'selected':''}>${l}</option>`).join('')}${psStage(c)!=='aguardando'?'<option value="aguardando">Desfazer · não foi contemplada</option>':''}</select></label>
     <label class="fld">Data da contemplação<input class="in" type="date" name="contemplated_on" value="${esc(p.contemplated_on||'')}"></label>
     <label class="fld">Forma de contemplação<select class="in" name="mode"><option value="">—</option>${PS_MODES.map(m=>`<option ${p.mode===m?'selected':''}>${m}</option>`).join('')}</select></label>
     <label class="fld">Lance (% do crédito)<input class="in num" type="number" step="0.01" min="0" max="100" name="bid_pct" value="${p.bid_pct??''}"></label>
@@ -2693,6 +2696,12 @@ ACT['ps-open']=el=>{const c=(PS.d.items||[]).find(x=>x.id===el.dataset.id);if(!c
    ${log?`<details style="margin-top:6px"><summary class="xs muted">Histórico</summary>${log}</details>`:''}`,
    onSubmit:dlgAsync(async f=>{const r=await rpc('crm_postsale_save',{p_org:S.orgId,p_id:c.id,p_data:{stage:f.stage,contemplated_on:f.contemplated_on,mode:f.mode,bid_pct:f.bid_pct,released_on:f.released_on,note:f.note}});c.ps=r;refresh();toast('Cota atualizada',{icon:'badge-check'})})});
 };
+
+ACT['ps-new']=()=>{const pend=(PS.d.items||[]).filter(c=>psStage(c)==='aguardando');
+  if(!pend.length){toast('Nenhuma cota vendida aguardando registro',{icon:'info'});return}
+  dialog({title:'Registrar contemplação',sub:'Escolha a cota contemplada',submit:'Continuar',body:`<label class="fld">Cota<select class="in" name="id" required>${pend.map(c=>`<option value="${esc(c.id)}">${esc(c.client||'—')} · ${esc(c.adm||'')} ${esc(c.grp||'')}/${esc(c.quota||'')} · ${esc(fBRL(c.credit))}</option>`).join('')}</select></label>
+   <div class="xs muted">Só cotas vendidas e efetivadas. Depois de salva, a cota passa a aparecer neste painel.</div>`,
+   onSubmit:f=>{setTimeout(()=>ACT['ps-open']({dataset:{id:f.id}}),0)}})};
 
 /* ===== Camada ao vivo: entrada, leitura e gravação no Supabase =====
    Só roda quando a página define window.__LIVE. As telas continuam as mesmas: aqui os dados reais
