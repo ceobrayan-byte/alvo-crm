@@ -1,0 +1,5 @@
+-- 22: crm_fin_list — fora do escritório cada pessoa vê só as próprias comissões; coordenador recebe 'coord'
+--     (total de crédito da equipe sem comissão individual, metas da equipe e a regra de remuneração da coordenação).
+--     Aplicado direto no banco em 20/11/2026 (texto completo da função em pg_get_functiondef('crm_fin_list(text)')).
+-- Tarefas de exemplo: 9 tarefas com metadata {"exemplo":true} e título "[Exemplo] ...", para mostrar o funcionamento.
+--   Para remover depois: UPDATE tasks SET status='CANCELADA' WHERE metadata->>'exemplo'='true';
