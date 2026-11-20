@@ -10,7 +10,7 @@ const deal=id=>O().deals.find(d=>d.id===id);
 const conv=id=>O().convs.find(c=>c.id===id);
 const inst=id=>O().inst.find(i=>i.id===id);
 const ROLE=()=>user(ME).role;
-const LV0=mod=>{mod=({'kanban':'contatos','leads-frios':'contatos','clientes':'contatos','financeiro':'contatos','emails':'suporte'})[mod]||mod;const i=MODS.findIndex(m=>m[0]===mod);return i<0?3:(O().perms[ROLE()][i]||0)};
+const LV0=mod=>{if(mod==='app-clientes')return LV0('suporte')>=3?3:0;mod=({'kanban':'contatos','leads-frios':'contatos','clientes':'contatos','financeiro':'contatos','emails':'suporte'})[mod]||mod;const i=MODS.findIndex(m=>m[0]===mod);return i<0?3:(O().perms[ROLE()][i]||0)};
 /* telas por perfil (role_screens): decidem o que aparece no menu; o banco continua decidindo o acesso */
 const LV=v=>{const base=LV0(v),t=O().screens&&O().screens[ROLE()];return t&&t[v]!=null?Math.min(base,t[v]):base};
 const $=(s,r=document)=>r.querySelector(s), $$=(s,r=document)=>[...r.querySelectorAll(s)];

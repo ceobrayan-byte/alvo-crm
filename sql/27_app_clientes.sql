@@ -1,0 +1,13 @@
+-- 27: App dos clientes (APP ALVO · alvoinvestimentos.com.br/meu-app) ligado ao CRM novo (20/11/2026)
+-- Portal (Supabase isuasjontveqnbxpkbjd):
+--   * pg_net + segredo do cofre 'crm_hook_secret'
+--   * trigger crm_notify_request em public.requests (INSERT/UPDATE OF status) → POST para a função alvo-portal-hook do CRM
+--   * public.crm_set_request_status(p_secret,p_id,p_status,p_note): o CRM atualiza a situação e grava em request_events
+--     (o próprio portal envia o e-mail de mudança de situação ao cliente)
+-- CRM (Supabase mbhouzjmiglhnukpuyco):
+--   * segredo 'portal_hook_secret' (mesmo valor), portal_hook_secret() só para service_role
+--   * portal_sale_map (VEN-… do Floot → SUP-… do CRM) e portal_requests
+--   * crm_portal_requests(p_org) / crm_portal_request_update(p_org,p_id,p_status,p_note) (Suporte nível 3)
+--   * função alvo-portal-hook: registra o pedido e cria aviso no sino para proprietário, administradores e suporte
+-- Observação: a consulta das cotas pelo app ainda usa a ponte do Floot (portal-crm-bridge). Migrar essa ponte exige
+-- alterar o código do portal (repositório alvo-portal-consorciado), o que ainda não foi feito.

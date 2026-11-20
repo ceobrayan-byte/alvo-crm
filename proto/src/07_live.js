@@ -15,7 +15,7 @@ let sb=null;
 const rpcRaw=async(fn,args)=>{const{data,error}=await sb.rpc(fn,args||{});if(error)throw error;return data};
 /* ----- "Ver como": o dono/administrador vê o CRM exatamente como um membro da equipe vê (somente leitura) ----- */
 const PV={on:false,id:null,name:'',roleKey:null,scope:null,perms:{},realMe:null,team:{}};
-const PV_READ=new Set(['crm_boot','crm_me','crm_team','crm_leads_board','crm_cold_list','crm_customers_list','crm_cases_list','crm_fin_list','crm_mail_audience','crm_dashboard','crm_commission_admin','crm_campaigns','crm_postsale_list','crm_cold_page','crm_assemblies']);
+const PV_READ=new Set(['crm_boot','crm_me','crm_team','crm_leads_board','crm_cold_list','crm_customers_list','crm_cases_list','crm_fin_list','crm_mail_audience','crm_dashboard','crm_commission_admin','crm_campaigns','crm_postsale_list','crm_cold_page','crm_assemblies','crm_portal_requests']);
 const pvVis=o=>o==null||o===PV.id||PV.scope==='ORGANIZACAO'||(PV.scope==='EQUIPE'&&PV.team[PV.id]&&PV.team[o]===PV.team[PV.id]);
 function pvFilter(fn,d){
   const office=(PV.perms.suporte||0)>=3,admin=(PV.perms.equipe||0)>=3;
@@ -224,7 +224,7 @@ async function reload(){
   refresh();redrawDrawer();ntLoad();
 }
 /* notificações reais (parcelas em atraso, contemplações, etc.) */
-const NT_ICON={parcela_atraso:'triangle-alert',contemplacao:'party-popper'};
+const NT_ICON={parcela_atraso:'triangle-alert',contemplacao:'party-popper',portal:'smartphone'};
 async function ntLoad(){if(!LIVE||PV.on)return;try{const r=await rpc('crm_notifications',{p_org:S.orgId});const o=O();if(!o)return;
   o.notifs=(r||[]).map(n=>({id:String(n.id),icon:NT_ICON[n.kind]||'bell',text:n.body,t:new Date(n.created_at),view:n.target_view||'visao-geral',read:!!n.read_at}));renderTop()}catch(e){}}
 ACT.notif=el=>{const n=O().notifs.find(x=>x.id===el.dataset.id);if(!n)return;if(LIVE&&!n.read&&!PV.on)rpc('crm_notification_read',{p_org:S.orgId,p_id:Number(n.id)}).catch(()=>{});n.read=true;S.ui.pop=null;go(n.view)};
@@ -470,7 +470,7 @@ async function mailFn(body){
 async function stUpload(bucket,path,file){if(PV.on)throw Object.assign(new Error('Modo "Ver como": nada é gravado.'),{code:'PV'});const{error}=await sb.storage.from(bucket).upload(path,file,{upsert:false,contentType:file.type||'application/octet-stream'});if(error)throw error;return path}
 async function stUrl(bucket,path){const{data,error}=await sb.storage.from(bucket).createSignedUrl(path,600);if(error)throw error;return data.signedUrl}
 async function fnCall(name,body){const{data,error}=await sb.functions.invoke(name,{body});if(error){let m=error.message;try{const j=await error.context.json();if(j&&j.error)m=j.error}catch(e){}throw new Error(m)}if(data&&data.error)throw new Error(data.error);return data}
-Object.assign(window,{rpc,fail,guarded,dlgAsync,fmtPhone,reload,LS,mailFn,stUpload,stUrl,fnCall});
+Object.assign(window,{rpc,fail,guarded,dlgAsync,fmtPhone,reload,LS,mailFn,stUpload,stUrl,fnCall,ntLoad});
 (async function(){
   if(!window.supabase||!CFG.url||!CFG.key){authShell('<h1>Configuração ausente</h1><p class="sm">Não foi possível carregar a biblioteca de acesso. Recarregue a página.</p>');return}
   sb=window.supabase.createClient(CFG.url,CFG.key,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true,flowType:'pkce'}});
