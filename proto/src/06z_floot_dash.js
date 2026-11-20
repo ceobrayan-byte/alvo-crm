@@ -70,6 +70,19 @@ function dxBars(rows,goalOf){
     <div class="row sp"><span class="sm nm">${esc(r.label)}</span><span class="sm num"><b>${esc(dxM(r.v))}</b>${g?` <span class="xs muted">/ ${esc(dxM(g))}</span>`:''}</span></div>
     <div class="trk"><i style="width:${(r.v/max*100).toFixed(1)}%"></i>${g?`<b class="gt" style="left:${Math.min(100,g/max*100).toFixed(1)}%"></b>`:''}</div></div>`}).join('')||'<div class="xs muted" style="padding:10px 0">Sem vendas no período.</div>'}</div>`;
 }
+/* pódio digital (usado também no ranking de Metas) */
+function dxPodium(top){if(!top.length)return'';const ord=[1,0,2].filter(i=>top[i]);
+  return`<div class="dzpod">${ord.map(i=>{const t=top[i];return`<div class="dzp p${i+1}">
+    <div class="ring" style="--p:${Math.max(2,Math.min(100,(t.p||0)*100)).toFixed(0)}">${avN(t.name,i===0?64:54)}</div>
+    <b class="sm nm">${esc(t.label)}</b>${t.sub?`<span class="xs muted nm">${esc(t.sub)}</span>`:''}
+    <span class="pv num">${esc(t.big)}</span><span class="xs muted num">${t.small}</span>
+    <div class="pil"><span class="rk">0${i+1}</span></div></div>`}).join('')}</div>`}
+function dxGauge(p){const r=52,c=2*Math.PI*r,v=Math.max(0,Math.min(1,p));
+  return`<div class="dzgauge"><svg width="150" height="150" viewBox="0 0 150 150" aria-hidden="true"><defs><linearGradient id="dzgg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#E2BE84"/><stop offset="1" stop-color="#C48A2C"/></linearGradient></defs>
+   <circle cx="75" cy="75" r="66" fill="none" stroke="var(--line2)" stroke-width="1" stroke-dasharray="2 5"/>
+   <circle cx="75" cy="75" r="${r}" fill="none" stroke="color-mix(in srgb,var(--ink) 10%,transparent)" stroke-width="12"/>
+   <circle cx="75" cy="75" r="${r}" fill="none" stroke="url(#dzgg)" stroke-width="12" stroke-linecap="round" stroke-dasharray="${(c*v).toFixed(1)} ${c.toFixed(1)}" transform="rotate(-90 75 75)"/></svg>
+   <div class="gv"><b class="num">${dxPct(p)}</b><span class="xs muted">da meta</span></div></div>`}
 /* ---------- tela ---------- */
 function dxExecView(){
   dxLoad();const d=DX.d,o=O();
@@ -110,23 +123,30 @@ function dxExecView(){
     ${regions.length>1&&d.scope==='ORGANIZACAO'?`<select class="in" data-chg="dx-region" aria-label="Região"><option value="all">Todas as regiões</option>${regions.map(r=>`<option value="${r.id}" ${DX.region===r.id?'selected':''}>${esc(r.name)}</option>`).join('')}</select>`:''}
     ${DX.team!=='all'||DX.seller!=='all'||DX.region!=='all'?`<button class="btn sm ghost" data-act="dx-clear">${ic('x')}Limpar filtros</button>`:''}
    </div>
-   <div class="card dzhero">
-    <div class="dzmain">
-     <div class="row sp wrap" style="gap:6px"><span class="xs muted">${esc(custom?dxLabel({kind:'x',start:range.start,end:range.end}):dxCLabel(cyc))}</span><span class="dzchip ${isNow?'live':''}">${esc(status)}</span></div>
-     <div class="xs muted" style="margin-top:14px">Realizado · vendas efetivadas</div>
-     <div class="dzbig num">${esc(dxBRL(real))}</div>
-     <div class="sm muted">${sales.length} venda${sales.length===1?'':'s'}${sales.length?' · ticket médio '+esc(dxM(real/sales.length)):''}${delta!=null?` · <span class="${delta>=0?'up':'down'}">${delta>=0?'▲':'▼'} ${Math.abs(Math.round(delta*100))}% vs ${prevC.kind==='mes'?'mês':'ciclo'} anterior</span>`:''}</div>
-     ${goal?`<div class="dzprog"><div class="trk"><i class="${tone}" style="width:${Math.min(100,pct*100).toFixed(1)}%"></i>${expected?`<b class="exp" style="left:${Math.min(100,expected/goal*100).toFixed(1)}%" title="Onde deveria estar hoje"></b>`:''}</div>
-      <div class="row sp xs"><span><b class="num">${dxPct(pct)}</b> da meta</span>${expected?`<span class="muted">ritmo ideal hoje: ${esc(dxM(expected))}</span>`:''}</div></div>`:`<div class="xs muted" style="margin-top:14px">${custom?'Metas valem por ciclo completo; escolha um ciclo para ver o atingimento.':'Nenhuma meta individual cadastrada para este ciclo/filtro.'}</div>`}
+   <div class="dzhero">
+    <div class="card dzmain">
+     <div class="dzgrid-bg" aria-hidden="true"></div>
+     <div class="eyebrow">${esc(custom?dxLabel({kind:'x',start:range.start,end:range.end}):dxCLabel(cyc))}</div>
+     <div class="dzhero-in">
+      <div class="grow" style="min-width:0">
+       <div class="xs muted" style="margin-top:10px">Realizado · vendas efetivadas</div>
+       <div class="dzbig num">${esc(dxBRL(real))}</div>
+       <div class="row wrap" style="gap:8px;margin-top:4px"><span class="dztag">${ic('receipt')}${sales.length} venda${sales.length===1?'':'s'}</span>${sales.length?`<span class="dztag">${ic('ticket')}ticket ${esc(dxM(real/sales.length))}</span>`:''}${delta!=null?`<span class="dztag ${delta>=0?'up':'down'}">${ic(delta>=0?'trending-up':'trending-down')}${Math.abs(Math.round(delta*100))}% vs ciclo anterior</span>`:''}</div>
+       ${goal?`<div class="dzprog"><div class="trk"><i class="${tone}" style="width:${Math.min(100,pct*100).toFixed(1)}%"></i>${expected?`<b class="exp" style="left:${Math.min(100,expected/goal*100).toFixed(1)}%" title="Onde deveria estar hoje"></b>`:''}</div>
+        <div class="row sp xs muted"><span>0</span>${expected?`<span>▲ ritmo ideal hoje ${esc(dxM(expected))}</span>`:''}<span>${esc(dxM(goal))}</span></div></div>`:`<div class="xs muted" style="margin-top:14px">${custom?'Metas valem por ciclo completo; escolha um ciclo para ver o atingimento.':'Nenhuma meta individual cadastrada para este ciclo/filtro.'}</div>`}
+      </div>
+      ${goal?dxGauge(pct):''}
+     </div>
     </div>
     <div class="dzside">
-     <div><span class="xs muted">Meta do período</span><b class="num">${goal?esc(dxBRL(goal)):'Não definida'}</b><span class="xs muted">${goal?'soma das metas individuais':'—'}</span></div>
-     <div><span class="xs muted">Falta para a meta</span><b class="num">${gap==null?'—':gap===0?'Meta batida 🎯':esc(dxBRL(gap))}</b><span class="xs muted">${isNow&&gap?esc(dxM(gap/Math.max(1,daysLeft)))+' por dia até '+dxDD(range.end):''}</span></div>
-     <div><span class="xs muted">${prevC?(prevC.kind==='mes'?'Mês':'Ciclo')+' anterior':'Comparação'}</span><b class="num">${prevReal!=null?esc(dxBRL(prevReal)):'—'}</b><span class="xs muted">${prevC?esc(dxLabel(prevC)):''}</span></div>
+     <div class="card dztile"><span class="ti">${ic('target')}</span><div><span class="xs muted">Meta do período</span><b class="num">${goal?esc(dxBRL(goal)):'Não definida'}</b><span class="xs muted">${goal?'soma das metas individuais':'cadastre em Metas e conquistas'}</span></div></div>
+     <div class="card dztile ${gap===0?'ok':''}"><span class="ti">${ic(gap===0?'trophy':'flag')}</span><div><span class="xs muted">Falta para a meta</span><b class="num">${gap==null?'—':gap===0?'Meta batida':esc(dxBRL(gap))}</b><span class="xs muted">${isNow&&gap?'precisa de '+esc(dxM(gap/Math.max(1,daysLeft)))+' por dia até '+dxDD(range.end):goal?dxPct(pct)+' atingido':''}</span></div></div>
+     <div class="card dztile"><span class="ti">${ic('history')}</span><div><span class="xs muted">${prevC?(prevC.kind==='mes'?'Mês':'Ciclo')+' anterior':'Comparação'}</span><b class="num">${prevReal!=null?esc(dxBRL(prevReal)):'—'}</b><span class="xs muted">${prevC?esc(dxLabel(prevC)):''}</span></div></div>
     </div>
    </div>
    <div class="card">
     <div class="row sp wrap"><div><b>Corrida da meta</b><div class="xs muted">Ordem pelo % da meta do ciclo · Escritório fora da competição</div></div><span class="dzchip">${race.filter(r=>!r.office).length} na disputa</span></div>
+    ${dxPodium(race.filter(r=>!r.office&&(r.t>0||r.pct)).slice(0,3).map(r=>({name:r.full,label:r.label,sub:r.team,big:r.g?dxPct(r.pct):dxM(r.t),small:r.g?esc(dxM(r.t))+' de '+esc(dxM(r.g)):r.n+' venda(s)',p:r.pct||0})))}
     <div class="dzrace">${race.map(r=>{const p=r.pct||0,w=Math.min(100,p/Math.max(1,raceMax)*100);if(!r.office)pos++;
       return`<div class="dzlane ${r.office?'office':''} ${r.id===ME?'me':''}" data-tip="${esc(r.full)}|${esc(dxBRL(r.t))} · ${r.n} venda(s)${r.g?'|Meta: '+esc(dxBRL(r.g))+' · '+dxPct(r.pct):'|Sem meta no ciclo'}">
        <span class="pos">${r.office?'':pos+'º'}</span>${avN(r.full,34)}
