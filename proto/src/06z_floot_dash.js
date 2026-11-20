@@ -1,11 +1,13 @@
 /* ===== Dashboard executivo (proprietário, administrador e coordenador) =====
    Fonte: crm_dashboard (vendas registradas e efetivadas, metas individuais por ciclo, equipes e regiões; já filtrado pelo perfil no banco).
    Regras iguais às do Floot:
-   * ciclo inicial do ranking: 01/10/2026 a 14/11/2026; depois, do dia 15 ao dia 14; antes de outubro, mês calendário;
+   * ciclo inicial: 01/10/2026 a 14/11/2026; transição: 15/11 a 30/11/2026; a partir de dezembro, mês cheio (01 ao último dia);
    * meta do período = soma das metas individuais do ciclo;
    * corrida ordenada pelo % da meta; o Escritório fica fora da competição (sempre por último). */
 const DX={d:null,loading:false,orgFor:null,cyc:null,from:'',to:'',team:'all',seller:'all',region:'all',cmp:true};
 const DX_INI={start:'2026-10-01',end:'2026-11-14'};
+/* a partir de 01/12/2026 o ciclo comercial é o mês cheio (dia 1 ao último dia); 15/11–30/11 é o ciclo de transição */
+const DX_MES='2026-12-01';
 const dxExec=()=>['Proprietário','Administrador','Coordenador'].includes(ROLE());
 const dxIso=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
 const dxDay=s=>{const[y,m,d]=String(s).slice(0,10).split('-').map(Number);return new Date(y,m-1,d)};
@@ -13,7 +15,8 @@ function dxCycle(date){
   const d=new Date(date.getFullYear(),date.getMonth(),date.getDate()),iso=dxIso(d),y=d.getFullYear(),m=d.getMonth();
   let start,end,kind='ciclo';
   if(iso>=DX_INI.start&&iso<=DX_INI.end){start=dxDay(DX_INI.start);end=dxDay(DX_INI.end);kind='inicial'}
-  else if(iso<DX_INI.start){start=new Date(y,m,1);end=new Date(y,m+1,0);kind='mes'}
+  else if(iso<DX_INI.start||iso>=DX_MES){start=new Date(y,m,1);end=new Date(y,m+1,0);kind=iso>=DX_MES?'ciclo':'mes'}
+  else if(iso>='2026-11-15'){start=dxDay('2026-11-15');end=dxDay('2026-11-30')}
   else if(d.getDate()>=15){start=new Date(y,m,15);end=new Date(y,m+1,14)}
   else{start=new Date(y,m-1,15);end=new Date(y,m,14)}
   return{key:dxIso(start),start,end,kind};
