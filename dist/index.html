@@ -483,6 +483,8 @@ body[data-mode="claro"]{--c1:#B27C26;--c2:#1F78C8;--cgoal:#7A5A1E}
 .gzint button.on.medium{background:color-mix(in srgb,var(--warn) 25%,transparent);color:var(--ink)}
 .gzint button.on.high{background:var(--gold);color:#06261F;font-weight:700}
 .gzph{white-space:nowrap}.gztbl td:first-child{min-width:170px}
+.emrule{display:flex;align-items:center;gap:14px;padding:14px 16px}
+.emrule .ti{flex:none;width:44px;height:44px;display:grid;place-items:center;border-radius:12px;font-size:20px;background:linear-gradient(140deg,#06261F,#1A5E4C);border:1px solid rgba(226,190,132,.4)}
 
 </style>
 </head>
@@ -1775,7 +1777,7 @@ function caseLine(k){return`<div class="card" style="padding:12px"><div class="r
 function custDrawer(id){
   const c=FC.custs.find(x=>x.id===id);if(!c)return'';
   return`<div class="dr-h">${avN(c.name,48)}<div class="grow"><div class="eyebrow">Ficha do cliente</div><h3 class="disp" style="font-size:26px;margin-top:2px">${esc(c.name)}</h3><div class="sm muted">Consultor: ${fcUser(c.owner_user_id)}</div></div><button class="ibtn" data-act="close" aria-label="Fechar">${ic("x")}</button></div>
-  <div class="dr-b"><div><div class="eyebrow" style="margin-bottom:8px">Cadastro</div><div class="col" style="gap:6px">${fRow('CPF/CNPJ',esc(c.cpf_cnpj))}${fRow('Telefone',esc(fmtPhone(c.phone)))}${fRow('E-mail',esc(c.email))}${fRow('Observações',esc(c.notes))}</div></div>
+  <div class="dr-b"><div><div class="eyebrow" style="margin-bottom:8px">Cadastro</div><div class="col" style="gap:6px">${fRow('CPF/CNPJ',esc(c.cpf_cnpj))}${fRow('Telefone',esc(fmtPhone(c.phone)))}${fRow('E-mail',esc(c.email))}${fRow('Nascimento',c.birth_date?esc(String(c.birth_date).split('-').reverse().join('/')):'')}${fRow('Observações',esc(c.notes))}</div></div>
    <div><div class="eyebrow" style="margin-bottom:8px">Cotas efetivadas (${(c.cases||[]).filter(fcEf).length})</div><div class="col" style="gap:8px">${(c.cases||[]).filter(fcEf).map(k=>`<div data-act="case-open" data-id="${k.id}" style="cursor:pointer">${caseLine(k)}</div>`).join('')||'<div class="empty xs">Sem cotas efetivadas.</div>'}</div></div>
    ${(c.cases||[]).some(k=>!fcEf(k))?`<div><div class="eyebrow" style="margin-bottom:8px">Em andamento no suporte (${(c.cases||[]).filter(k=>!fcEf(k)).length})</div><div class="col" style="gap:8px">${(c.cases||[]).filter(k=>!fcEf(k)).map(k=>`<div data-act="case-open" data-id="${k.id}" style="cursor:pointer;opacity:.85">${caseLine(k)}</div>`).join('')}</div><div class="xs muted" style="margin-top:6px">Vira cota do cliente quando for efetivada.</div></div>`:''}</div>
   <div class="dr-f"><button class="btn" data-act="cust-edit" data-id="${c.id}">${ic('pencil')}Editar cadastro</button><button class="btn pri" data-act="cust-sale" data-id="${c.id}">${ic('plus')}Nova venda</button></div>`;
@@ -1785,9 +1787,10 @@ ACT['cust-sale']=async el=>{await guarded(async()=>{const l=await rpc('crm_custo
 ACT['cust-edit']=el=>{const c=FC.custs.find(x=>x.id===el.dataset.id);if(!c)return;const v=k=>esc(c[k]==null?'':c[k]);
   dialog({title:'Editar cadastro do cliente',sub:'Clientes',submit:'Salvar',wide:true,body:`<div class="g" style="grid-template-columns:1fr 1fr"><label class="fld">Nome<input class="in" name="name" required value="${v('name')}"></label><label class="fld">CPF/CNPJ<input class="in" name="cpf_cnpj" value="${v('cpf_cnpj')}"></label>
    <label class="fld">Telefone<input class="in" name="phone" value="${v('phone')}"></label><label class="fld">E-mail<input class="in" name="email" type="email" value="${v('email')}"></label>
+   <label class="fld">Data de nascimento<input class="in" type="date" name="birth" value="${esc(c.birth_date||'')}"><span class="xs muted">Envia o e-mail de aniversário automaticamente.</span></label>
    ${isOffice()?`<label class="fld">Consultor responsável<select class="in" name="owner_user_id">${fOwnerOpts(c.owner_user_id)}</select></label>`:''}</div><label class="fld">Observações<textarea class="in" name="notes" rows="3">${v('notes')}</textarea></label>`,
    onSubmit:dlgAsync(async f=>{const d={name:f.name,cpf_cnpj:f.cpf_cnpj,phone:f.phone,email:f.email,notes:f.notes};if(f.owner_user_id)d.owner_user_id=f.owner_user_id;
-     await rpc('crm_customer_save',{p_org:S.orgId,p_id:c.id,p_data:d});await fcLoad(true);toast('Cadastro atualizado',{icon:'check'});LS.after=()=>{refresh();if(S.ui.drawer)redrawDrawer()}})})};
+     await rpc('crm_customer_save',{p_org:S.orgId,p_id:c.id,p_data:d});if((f.birth||'')!==(c.birth_date||''))await rpc('crm_customer_birth',{p_org:S.orgId,p_id:c.id,p_birth:f.birth||null});await fcLoad(true);toast('Cadastro atualizado',{icon:'check'});LS.after=()=>{refresh();if(S.ui.drawer)redrawDrawer()}})})};
 
 /* ---- Suporte / Operacional ---- */
 VIEWS['suporte']=()=>{
@@ -2104,10 +2107,10 @@ VIEWS['emails']=()=>{
   const cfg=EM.cfg;
   return`<div class="pg"><div class="pg-h"><div class="grow"><div class="eyebrow">${esc(o.name)} · remetente suporte@alvoinvestimentos.com</div><h2>E-mails</h2></div>
    ${cfg?(cfg.configured?'<span class="bd ok">Resend conectado</span>':'<span class="bd warn" title="Falta cadastrar a chave do Resend no Supabase">Resend sem chave</span>'):''}</div>
-   <div class="row" role="tablist">${[['models','Modelos'],['cli','Clientes · jornada e disparo'],['team','Avisos à equipe'],['hist','Histórico']].map(t=>`<button class="btn sm ${EM.tab===t[0]?'pri':''}" role="tab" data-act="em-tab" data-id="${t[0]}">${t[1]}</button>`).join('')}</div>
-   ${EM.tab==='models'?emModels():EM.tab==='cli'?emClients():EM.tab==='team'?emTeam():emHist()}</div>`;
+   <div class="row" role="tablist">${[['models','Modelos'],['asm','Resultado de assembleia'],['auto','Envios automáticos'],['cli','Clientes · jornada e disparo'],['team','Avisos à equipe'],['hist','Histórico']].map(t=>`<button class="btn sm ${EM.tab===t[0]?'pri':''}" role="tab" data-act="em-tab" data-id="${t[0]}">${t[1]}</button>`).join('')}</div>
+   ${EM.tab==='asm'?emAsm():EM.tab==='auto'?emAuto():EM.tab==='models'?emModels():EM.tab==='cli'?emClients():EM.tab==='team'?emTeam():emHist()}</div>`;
 };
-ACT['em-tab']=el=>{EM.tab=el.dataset.id;refresh();if(EM.tab==='hist')ACT['em-refresh'](null,true)};
+ACT['em-tab']=el=>{EM.tab=el.dataset.id;if(EM.tab==='asm')emAsmLoad();refresh();if(EM.tab==='hist')ACT['em-refresh'](null,true)};
 CHG['em-kind']=el=>{EM.kind=el.value;refresh()};CHG['em-adm']=el=>{EM.adm=el.value;refresh()};CHG['em-cat']=el=>{EM.cat=el.value};
 CHG['em-pick']=el=>{el.checked?EM.sel.add(el.dataset.id):EM.sel.delete(el.dataset.id);refresh()};
 CHG['em-tpick']=el=>{el.checked?EM.tsel.add(el.dataset.id):EM.tsel.delete(el.dataset.id);refresh()};
@@ -2167,6 +2170,64 @@ ACT['em-tsend']=async()=>{
     toast(esc(r.message||'Enviado'),{icon:'send',ms:6000});EM.tsel.clear();EM.subj='';EM.tbody='';await emLoad(true)});
   EM.busy=false;refresh()};
 ACT['em-refresh']=async(el,quiet)=>{try{const r=await mailFn({action:'refresh',org:S.orgId});await emLoad(true);if(!quiet)toast(`${r.updated||0} situação(ões) atualizada(s)`,{icon:'refresh-cw'})}catch(e){if(!quiet)fail(e)}};
+
+/* ---- envios automáticos (rotina diária às 08:10) ---- */
+function emNext(days){const t=new Date(Date.now()-4*3600e3),y=t.getUTCFullYear(),m=t.getUTCMonth(),d=t.getUTCDate();for(let k=0;k<3;k++)for(const dd of days){const dt=new Date(Date.UTC(y,m+k,dd));if(k>0||dd>=d)return String(dd).padStart(2,'0')+'/'+String(dt.getUTCMonth()+1).padStart(2,'0')}return'—'}
+function emAuto(){
+  const d=EM.d,act=new Set(d.clients.filter(c=>emOk(c.email)).map(c=>String(c.email).toLowerCase())).size;
+  const autos=d.history.filter(r=>r.sent_by==='Automático'),last=k=>autos.find(r=>r.template===k);
+  const rule=(icon,t,when,who,k,nx)=>`<div class="card emrule"><span class="ti">${icon}</span><div class="grow"><b>${t}</b><div class="xs muted">${when} · ${who}</div>
+    <div class="row wrap" style="gap:6px;margin-top:8px"><span class="bd ok">ativo</span>${nx?`<span class="bd mute">próximo: ${nx}</span>`:''}${k&&last(k)?`<span class="bd mute">último: ${esc(fcDate(last(k).created_at))}</span>`:''}</div></div>
+    ${k?`<button class="btn sm ghost" data-act="em-model" data-id="${k}">${ic('eye')}Ver e-mail</button>`:''}</div>`;
+  return`<div class="sm muted">Rodam sozinhos todos os dias às 08:10 (horário de Cuiabá). Ninguém recebe o mesmo aviso duas vezes. Os demais modelos continuam com envio manual.</div>
+   <div class="col" style="gap:10px">
+    ${rule('📅','Lembrete de pagamento','Todo dia 02 e 07 · vencimento dia 10',act+' clientes ativos','payment-reminder',emNext([2,7]))}
+    ${rule('⏰','Último dia de pagamento','Todo dia 10',act+' clientes ativos','payment-last-day',emNext([10]))}
+    ${rule('🎉','Feliz aniversário','Todo dia, no dia do aniversário','clientes com data de nascimento no cadastro','birthday','')}
+    ${rule('🔔','Parcela em atraso → aviso para o proprietário','Todo dia · parcela vencida (dia 10) sem confirmação em Mensalidades','notificação no sino, sem e-mail ao cliente','', '')}
+   </div>
+   <div class="eyebrow" style="margin-top:6px">Últimos envios automáticos</div>
+   <div class="tbl-wrap"><table class="tbl"><thead><tr><th>Data</th><th>Modelo</th><th>Cliente</th><th>Situação</th></tr></thead><tbody>${autos.slice(0,30).map(r=>`<tr><td class="sm num">${fcDate(r.created_at)}</td><td class="sm">${esc((EM_CAT.find(x=>x[0]===r.template)||[0,r.template])[1])}</td><td><b class="sm">${esc(r.to_name||'')}</b><div class="xs muted">${esc(r.to_email)}</div></td><td>${emStBd(r.status)}</td></tr>`).join('')||'<tr><td colspan="4"><div class="empty">Ainda não houve envio automático. O próximo lembrete sai no dia '+emNext([2,7,10])+'.</div></td></tr>'}</tbody></table></div>`;
+}
+/* ---- resultado de assembleia: o suporte informa e o CRM envia na hora para o grupo ---- */
+EM.asm={adm:'',grp:'',date:'',draw:'',bids:'',max:'',min:'',summary:'',ev:''};EM.asmList=null;
+async function emAsmLoad(){try{EM.asmList=await rpc('crm_assemblies',{p_org:S.orgId})}catch(e){EM.asmList=[]}if(S.view==='emails')refresh()}
+const emAsmBids=t=>String(t||'').split(/\n+/).map(l=>l.trim()).filter(Boolean).map(l=>{const m=l.match(/^([A-Za-z0-9-]+)\D*?([\d]+(?:[.,]\d+)?)?\s*%?\s*$/);return m?{quota:m[1],pct:m[2]?Number(m[2].replace(',','.')):null}:{quota:l.split(/\s/)[0],pct:null}});
+const emAsmDraw=t=>String(t||'').split(/[\s,;]+/).map(x=>x.trim()).filter(Boolean);
+function emAsmData(){const a=EM.asm,n=v=>v===''?null:Number(String(v).replace(',','.'));return{adm:a.adm,grp:a.grp,held_on:a.date,draw_quotas:emAsmDraw(a.draw),bids:emAsmBids(a.bids),max_bid:n(a.max),min_bid:n(a.min),summary:a.summary,evidence:a.ev}}
+function emAsm(){
+  if(EM.asmList==null)emAsmLoad();
+  const a=EM.asm,cl=EM.d.clients.filter(c=>emOk(c.email));
+  const adms=[...new Set(cl.map(c=>c.adm).filter(Boolean))].sort(),grps=[...new Set(cl.filter(c=>c.adm===a.adm).map(c=>c.grp).filter(Boolean))].sort();
+  const who=new Set(cl.filter(c=>c.adm===a.adm&&c.grp===a.grp).map(c=>String(c.email).toLowerCase())).size;
+  const f=(id,l,ph,type)=>`<label class="fld">${l}<input class="in" id="ea-${id}" ${type?`type="${type}"`:''} value="${esc(a[id])}" placeholder="${esc(ph||'')}"></label>`;
+  return`<div class="sm muted">Informe o resultado oficial da assembleia. Ao salvar, o CRM envia na hora o e-mail de resultado para <b>todos os clientes ativos do grupo</b>. Se a cota de algum cliente aparecer no resultado, o e-mail destaca isso e você recebe um aviso para confirmar em Negócios.</div>
+  <div class="card col" style="gap:12px">
+   <div class="g" style="grid-template-columns:1fr 1fr 1fr;gap:12px">
+    <label class="fld">Administradora<select class="in" data-chg="ea-adm"><option value="">Escolha…</option>${adms.map(x=>`<option ${a.adm===x?'selected':''}>${esc(x)}</option>`).join('')}</select></label>
+    <label class="fld">Grupo<select class="in" data-chg="ea-grp" ${a.adm?'':'disabled'}><option value="">Escolha…</option>${grps.map(x=>`<option ${a.grp===x?'selected':''}>${esc(x)}</option>`).join('')}</select></label>
+    ${f('date','Data da assembleia','', 'date')}</div>
+   <div class="g" style="grid-template-columns:1fr 1fr;gap:12px">
+    <label class="fld">Cotas contempladas por sorteio<textarea class="in" id="ea-draw" rows="3" placeholder="Ex.: 1514, 2187">${esc(a.draw)}</textarea><span class="xs muted">Separe por vírgula ou espaço.</span></label>
+    <label class="fld">Lances vencedores<textarea class="in" id="ea-bids" rows="3" placeholder="Uma por linha: cota e percentual&#10;4136 35,5&#10;2728 32">${esc(a.bids)}</textarea><span class="xs muted">Uma cota por linha, com o % do lance.</span></label></div>
+   <div class="g" style="grid-template-columns:1fr 1fr 2fr;gap:12px">${f('max','Maior lance (%)','35,5')}${f('min','Menor lance (%)','32')}${f('ev','Fonte oficial *','Ex.: extrato da administradora de 25/11')}</div>
+   <label class="fld">Resumo / observações para o cliente<textarea class="in" id="ea-summary" rows="2" maxlength="3000" placeholder="Ex.: Próxima assembleia em 22/12.">${esc(a.summary)}</textarea></label>
+   <div class="row wrap" style="gap:8px"><button class="btn" data-act="ea-prev">${ic('eye')}Ver prévia do e-mail</button>
+    <button class="btn pri end" data-act="ea-send" ${a.adm&&a.grp&&a.date&&a.ev.trim().length>=8&&!EM.busy?'':'disabled'}>${ic('send')}Salvar e enviar para ${who} cliente(s)</button></div>
+  </div>
+  <div class="eyebrow">Assembleias registradas</div>
+  <div class="tbl-wrap"><table class="tbl"><thead><tr><th>Data</th><th>Administradora · grupo</th><th>Sorteio</th><th>Lances</th><th>Enviados</th><th>Cotas da carteira no resultado</th><th>Por</th></tr></thead><tbody>${(EM.asmList||[]).map(x=>`<tr><td class="sm num">${esc(String(x.held_on).split('-').reverse().join('/'))}</td><td class="sm">${esc(x.adm)} · ${esc(x.grp)}</td><td class="sm">${esc((x.draw_quotas||[]).join(', ')||'—')}</td><td class="sm">${esc((x.bids||[]).map(b=>b.quota+(b.pct!=null?' ('+String(b.pct).replace('.',',')+'%)':'')).join(', ')||'—')}</td><td class="num">${x.sent==null?'<span class="bd warn">não enviado</span>':x.sent}</td><td class="sm">${(x.matched||[]).length?(x.matched||[]).map(m=>`<span class="bd ok">${esc(m.client)} · ${esc(m.quota)}</span>`).join(' '):'—'}</td><td class="xs muted">${esc(x.created_by||'')}</td></tr>`).join('')||'<tr><td colspan="7"><div class="empty">Nenhuma assembleia registrada ainda.</div></td></tr>'}</tbody></table></div>`;
+}
+CHG['ea-adm']=el=>{EM.asm.adm=el.value;EM.asm.grp='';refresh()};CHG['ea-grp']=el=>{EM.asm.grp=el.value;refresh()};
+document.addEventListener('input',ev=>{const t=ev.target;if(t&&t.id&&t.id.startsWith('ea-')){EM.asm[t.id.slice(3)]=t.value;const b=document.querySelector('[data-act="ea-send"]');const a=EM.asm;if(b)b.disabled=!(a.adm&&a.grp&&a.date&&a.ev.trim().length>=8)}});
+document.addEventListener('change',ev=>{const t=ev.target;if(t&&t.id==='ea-date'){EM.asm.date=t.value;refresh()}});
+ACT['ea-prev']=()=>{const d=emAsmData();emShow({action:'preview',org:S.orgId,mode:'cliente',template:'assembly-feedback',eventDate:d.held_on||null,body:'',assembly:{held_on:d.held_on||'2026-12-01',adm:d.adm||'—',grp:d.grp||'—',draw_quotas:d.draw_quotas,bids:d.bids,min_bid:d.min_bid,max_bid:d.max_bid,summary:d.summary,mine:[]}},'Resultado da assembleia')};
+ACT['ea-send']=async()=>{const d=emAsmData();if(!d.draw_quotas.length&&!d.bids.length&&!confirm('Nenhuma cota contemplada informada. Enviar mesmo assim?'))return;
+  if(!confirm(`Enviar o resultado da assembleia ${d.adm} · grupo ${d.grp} para os clientes ativos do grupo agora?`))return;
+  EM.busy=true;refresh();
+  await guarded(async()=>{const a=await rpc('crm_assembly_save',{p_org:S.orgId,p_data:d});const r=await mailFn({action:'assembly',org:S.orgId,id:a.id});
+    toast(esc(r.message||'Enviado'),{icon:'send',ms:7000});EM.asm={adm:'',grp:'',date:'',draw:'',bids:'',max:'',min:'',summary:'',ev:''};await emAsmLoad();await emLoad(true)});
+  EM.busy=false;refresh()};
 
 /* ===== Bloco Financeiro / Comissões (cópia das regras do Floot) ===== */
 const FIN={d:null,loading:false,orgFor:null,tab:null,month:'all',seller:'all',status:'all',q:''};
@@ -2838,7 +2899,7 @@ let sb=null;
 const rpcRaw=async(fn,args)=>{const{data,error}=await sb.rpc(fn,args||{});if(error)throw error;return data};
 /* ----- "Ver como": o dono/administrador vê o CRM exatamente como um membro da equipe vê (somente leitura) ----- */
 const PV={on:false,id:null,name:'',roleKey:null,scope:null,perms:{},realMe:null,team:{}};
-const PV_READ=new Set(['crm_boot','crm_me','crm_team','crm_leads_board','crm_cold_list','crm_customers_list','crm_cases_list','crm_fin_list','crm_mail_audience','crm_dashboard','crm_commission_admin','crm_campaigns','crm_postsale_list','crm_cold_page']);
+const PV_READ=new Set(['crm_boot','crm_me','crm_team','crm_leads_board','crm_cold_list','crm_customers_list','crm_cases_list','crm_fin_list','crm_mail_audience','crm_dashboard','crm_commission_admin','crm_campaigns','crm_postsale_list','crm_cold_page','crm_assemblies']);
 const pvVis=o=>o==null||o===PV.id||PV.scope==='ORGANIZACAO'||(PV.scope==='EQUIPE'&&PV.team[PV.id]&&PV.team[o]===PV.team[PV.id]);
 function pvFilter(fn,d){
   const office=(PV.perms.suporte||0)>=3,admin=(PV.perms.equipe||0)>=3;
@@ -3044,8 +3105,14 @@ const stub=x=>({id:x.id,name:x.name,sub:'',mark:(x.name||'?').trim().charAt(0).t
 async function reload(){
   const b=await rpc('crm_boot',{p_org:S.orgId});
   S.orgs[S.orgId]=await loadOrg(S.orgId,b.me,b);LS.at=Date.now();
-  refresh();redrawDrawer();
+  refresh();redrawDrawer();ntLoad();
 }
+/* notificações reais (parcelas em atraso, contemplações, etc.) */
+const NT_ICON={parcela_atraso:'triangle-alert',contemplacao:'party-popper'};
+async function ntLoad(){if(!LIVE||PV.on)return;try{const r=await rpc('crm_notifications',{p_org:S.orgId});const o=O();if(!o)return;
+  o.notifs=(r||[]).map(n=>({id:String(n.id),icon:NT_ICON[n.kind]||'bell',text:n.body,t:new Date(n.created_at),view:n.target_view||'visao-geral',read:!!n.read_at}));renderTop()}catch(e){}}
+ACT.notif=el=>{const n=O().notifs.find(x=>x.id===el.dataset.id);if(!n)return;if(LIVE&&!n.read&&!PV.on)rpc('crm_notification_read',{p_org:S.orgId,p_id:Number(n.id)}).catch(()=>{});n.read=true;S.ui.pop=null;go(n.view)};
+ACT['read-all']=()=>{if(LIVE&&!PV.on)rpc('crm_notification_read',{p_org:S.orgId,p_id:null}).catch(()=>{});O().notifs.forEach(n=>n.read=true);renderTop()};
 
 /* ----- entrada ----- */
 async function enter(){
@@ -3064,7 +3131,7 @@ async function enter(){
   resetViewState();LS.at=Date.now();
   boot();
   /* já busca, em segundo plano, os dados de Leads, Clientes e Financeiro para as telas abrirem na hora */
-  setTimeout(()=>{try{flLoad();fcLoad();finLoad()}catch(e){}},50);
+  setTimeout(()=>{try{flLoad();fcLoad();finLoad();ntLoad()}catch(e){}},50);
   if(!LS.started){LS.started=true;
     document.addEventListener('visibilitychange',()=>{if(!document.hidden&&Date.now()-LS.at>90000&&!S.ui.modal&&!S.ui.drawer&&!LS.busy)reload().catch(()=>{})});
   }

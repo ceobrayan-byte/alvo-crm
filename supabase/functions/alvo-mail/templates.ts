@@ -25,6 +25,7 @@ const NOTICE_QUOTE: Record<string,string> = {'Metas e campanhas':'Meta clara, ro
 export const esc = (v: unknown) => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c] || c));
 const dateBr = (v?: string) => v && /^\d{4}-\d\d-\d\d$/.test(v) ? v.slice(8,10)+'/'+v.slice(5,7)+'/'+v.slice(0,4) : 'Não informado';
 export type Recipient = {name: string; email: string; administrator: string; group: string; quota: string; eventDate?: string};
+export type Assembly = {held_on: string; adm: string; grp: string; draw_quotas: string[]; bids: {quota: string; pct?: number}[]; min_bid?: number | null; max_bid?: number | null; summary?: string | null; mine?: string[]};
 export type Campaign = {eyebrow?: string; headline?: string; subtitle?: string; highlights?: string[]; ctaLabel?: string; ctaUrl?: string};
 
 // ---------- identidade ----------
@@ -90,7 +91,7 @@ function shell(o: {subject: string; preheader: string; eyebrow: string; icon: st
   '</td></tr></table></body></html>';
 }
 
-export function journeyEmail(kind: Kind, r: Recipient, customBody?: string, unsubscribeUrl?: string, camp?: Campaign) {
+export function journeyEmail(kind: Kind, r: Recipient, customBody?: string, unsubscribeUrl?: string, camp?: Campaign, asm?: Assembly) {
   const model = catalog.find(x => x.id === kind); if (!model) throw new Error('Modelo inválido.');
   const first = esc((r.name || '').trim().split(/\s+/)[0] || 'Cliente');
   const pay = model.cta === 'boleto';
@@ -115,6 +116,7 @@ export function journeyEmail(kind: Kind, r: Recipient, customBody?: string, unsu
     if (r.eventDate && kind.startsWith('payment')) f.push(['Vencimento', dateBr(r.eventDate)]);
     if (r.eventDate && kind.startsWith('assembly')) f.push(['Assembleia', dateBr(r.eventDate)]);
     if (kind !== 'birthday') content += facts(f);
+    if (asm) content += assemblyBlock(asm);
     if (kind === 'payment-last-day') content += '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:18px 0 0"><tr><td style="background:#FBF6EA;border:1px solid #EFDDB7;border-radius:12px;padding:14px 16px;'+F+';font-size:13.5px;line-height:1.6;color:'+C.ink2+'"><b style="color:'+C.green+'">Um lembrete com responsabilidade:</b> caso já tenha pago, desconsidere este aviso. Não se trata de confirmação de inadimplência.</td></tr></table>';
     if (model.cta !== 'none') {
       const label = pay ? 'Solicitar meu boleto' : model.cta === 'indicar' ? 'Quero indicar alguém' : 'Falar com a ALVO';
@@ -133,6 +135,24 @@ export function journeyEmail(kind: Kind, r: Recipient, customBody?: string, unsu
     (kind === 'campaign' ? ((camp?.highlights || []).filter(Boolean).map(h => '\n• '+h).join('')+(camp?.ctaUrl ? '\n\n'+(camp?.ctaLabel || 'Saiba mais')+': '+camp.ctaUrl : '')) : '\n\n'+r.administrator+' · Grupo '+r.group+' · Cota '+r.quota)+
     '\n\nEquipe de Relacionamento ALVO\nsuporte@alvoinvestimentos.com'+(model.promotional && unsubscribeUrl ? '\n\nCancelar comunicações promocionais: '+unsubscribeUrl : '');
   return {subject, html, text};
+}
+
+function assemblyBlock(a: Assembly) {
+  const pct = (v: unknown) => v == null || v === '' ? '—' : String(v).replace('.', ',') + '%';
+  const stat = (l: string, v: string) => '<td width="25%" valign="top" style="padding:4px"><div style="background:'+C.deep+';border-radius:12px;padding:12px 10px;text-align:center"><div style="'+F+';font-size:22px;font-weight:700;color:'+C.gold2+'">'+v+'</div><div style="'+F+';font-size:10.5px;letter-spacing:1px;color:#BFD3C9;text-transform:uppercase;margin-top:2px">'+l+'</div></div></td>';
+  const chips = (arr: string[]) => arr.map(q => '<span style="display:inline-block;margin:3px 4px 0 0;padding:5px 10px;border-radius:99px;background:'+C.ivory+';border:1px solid '+C.line+';'+F+';font-size:13px;font-weight:600;color:'+C.green+'">'+esc(q)+'</span>').join('');
+  const mine = (a.mine || []).filter(Boolean);
+  let h = '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:22px 0 0;border:1px solid '+C.line+';border-radius:16px"><tr><td style="padding:20px 18px">'+
+    '<div style="'+F+';font-size:11px;letter-spacing:2px;color:'+C.gold+';font-weight:700">RESULTADO OFICIAL · '+esc(a.adm)+' · GRUPO '+esc(a.grp)+' · '+esc(dateBr(a.held_on))+'</div>'+
+    '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:12px 0 6px"><tr>'+stat('Sorteio', String(a.draw_quotas.length))+stat('Lances', String(a.bids.length))+stat('Maior lance', pct(a.max_bid))+stat('Menor lance', pct(a.min_bid))+'</tr></table>';
+  if (a.draw_quotas.length) h += '<div style="'+F+';font-size:13px;color:'+C.ink2+';margin-top:12px"><b style="color:'+C.green+'">Cotas contempladas por sorteio</b><br>'+chips(a.draw_quotas)+'</div>';
+  if (a.bids.length) h += '<div style="'+F+';font-size:13px;color:'+C.ink2+';margin-top:12px"><b style="color:'+C.green+'">Lances vencedores</b><br>'+chips(a.bids.map(b => b.quota + (b.pct != null ? ' · ' + pct(b.pct) : '')))+'</div>';
+  if (a.summary) h += '<div style="'+F+';font-size:13.5px;line-height:1.6;color:'+C.ink2+';margin-top:14px;padding-top:12px;border-top:1px solid '+C.line+'">'+esc(a.summary).replace(/\n/g, '<br>')+'</div>';
+  h += '</td></tr></table>';
+  h += mine.length
+    ? '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:16px 0 0"><tr><td style="background:linear-gradient(135deg,'+C.gold2+','+C.gold+');background-color:'+C.gold+';border-radius:14px;padding:18px 20px;'+F+';color:'+C.deep+'"><div style="font-size:18px;font-weight:700">🎉 O número da sua cota aparece no resultado!</div><div style="font-size:14px;line-height:1.6;margin-top:6px">Cota '+esc(mine.join(', '))+'. Nossa equipe está confirmando com a administradora e vai falar com você em seguida para os próximos passos.</div></td></tr></table>'
+    : '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:16px 0 0"><tr><td style="background:'+C.ivory+';border-radius:14px;padding:16px 20px;'+F+';font-size:14px;line-height:1.6;color:'+C.green+'"><b>Sua cota segue ativa e participando das próximas assembleias.</b> Cada parcela em dia mantém você no jogo — e mais perto da sua conquista.</td></tr></table>';
+  return h;
 }
 
 export function noticeEmail(sellerName: string, category: string, subject: string, body: string) {

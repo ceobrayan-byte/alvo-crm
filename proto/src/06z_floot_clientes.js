@@ -37,7 +37,7 @@ function caseLine(k){return`<div class="card" style="padding:12px"><div class="r
 function custDrawer(id){
   const c=FC.custs.find(x=>x.id===id);if(!c)return'';
   return`<div class="dr-h">${avN(c.name,48)}<div class="grow"><div class="eyebrow">Ficha do cliente</div><h3 class="disp" style="font-size:26px;margin-top:2px">${esc(c.name)}</h3><div class="sm muted">Consultor: ${fcUser(c.owner_user_id)}</div></div><button class="ibtn" data-act="close" aria-label="Fechar">${ic("x")}</button></div>
-  <div class="dr-b"><div><div class="eyebrow" style="margin-bottom:8px">Cadastro</div><div class="col" style="gap:6px">${fRow('CPF/CNPJ',esc(c.cpf_cnpj))}${fRow('Telefone',esc(fmtPhone(c.phone)))}${fRow('E-mail',esc(c.email))}${fRow('Observações',esc(c.notes))}</div></div>
+  <div class="dr-b"><div><div class="eyebrow" style="margin-bottom:8px">Cadastro</div><div class="col" style="gap:6px">${fRow('CPF/CNPJ',esc(c.cpf_cnpj))}${fRow('Telefone',esc(fmtPhone(c.phone)))}${fRow('E-mail',esc(c.email))}${fRow('Nascimento',c.birth_date?esc(String(c.birth_date).split('-').reverse().join('/')):'')}${fRow('Observações',esc(c.notes))}</div></div>
    <div><div class="eyebrow" style="margin-bottom:8px">Cotas efetivadas (${(c.cases||[]).filter(fcEf).length})</div><div class="col" style="gap:8px">${(c.cases||[]).filter(fcEf).map(k=>`<div data-act="case-open" data-id="${k.id}" style="cursor:pointer">${caseLine(k)}</div>`).join('')||'<div class="empty xs">Sem cotas efetivadas.</div>'}</div></div>
    ${(c.cases||[]).some(k=>!fcEf(k))?`<div><div class="eyebrow" style="margin-bottom:8px">Em andamento no suporte (${(c.cases||[]).filter(k=>!fcEf(k)).length})</div><div class="col" style="gap:8px">${(c.cases||[]).filter(k=>!fcEf(k)).map(k=>`<div data-act="case-open" data-id="${k.id}" style="cursor:pointer;opacity:.85">${caseLine(k)}</div>`).join('')}</div><div class="xs muted" style="margin-top:6px">Vira cota do cliente quando for efetivada.</div></div>`:''}</div>
   <div class="dr-f"><button class="btn" data-act="cust-edit" data-id="${c.id}">${ic('pencil')}Editar cadastro</button><button class="btn pri" data-act="cust-sale" data-id="${c.id}">${ic('plus')}Nova venda</button></div>`;
@@ -47,9 +47,10 @@ ACT['cust-sale']=async el=>{await guarded(async()=>{const l=await rpc('crm_custo
 ACT['cust-edit']=el=>{const c=FC.custs.find(x=>x.id===el.dataset.id);if(!c)return;const v=k=>esc(c[k]==null?'':c[k]);
   dialog({title:'Editar cadastro do cliente',sub:'Clientes',submit:'Salvar',wide:true,body:`<div class="g" style="grid-template-columns:1fr 1fr"><label class="fld">Nome<input class="in" name="name" required value="${v('name')}"></label><label class="fld">CPF/CNPJ<input class="in" name="cpf_cnpj" value="${v('cpf_cnpj')}"></label>
    <label class="fld">Telefone<input class="in" name="phone" value="${v('phone')}"></label><label class="fld">E-mail<input class="in" name="email" type="email" value="${v('email')}"></label>
+   <label class="fld">Data de nascimento<input class="in" type="date" name="birth" value="${esc(c.birth_date||'')}"><span class="xs muted">Envia o e-mail de aniversário automaticamente.</span></label>
    ${isOffice()?`<label class="fld">Consultor responsável<select class="in" name="owner_user_id">${fOwnerOpts(c.owner_user_id)}</select></label>`:''}</div><label class="fld">Observações<textarea class="in" name="notes" rows="3">${v('notes')}</textarea></label>`,
    onSubmit:dlgAsync(async f=>{const d={name:f.name,cpf_cnpj:f.cpf_cnpj,phone:f.phone,email:f.email,notes:f.notes};if(f.owner_user_id)d.owner_user_id=f.owner_user_id;
-     await rpc('crm_customer_save',{p_org:S.orgId,p_id:c.id,p_data:d});await fcLoad(true);toast('Cadastro atualizado',{icon:'check'});LS.after=()=>{refresh();if(S.ui.drawer)redrawDrawer()}})})};
+     await rpc('crm_customer_save',{p_org:S.orgId,p_id:c.id,p_data:d});if((f.birth||'')!==(c.birth_date||''))await rpc('crm_customer_birth',{p_org:S.orgId,p_id:c.id,p_birth:f.birth||null});await fcLoad(true);toast('Cadastro atualizado',{icon:'check'});LS.after=()=>{refresh();if(S.ui.drawer)redrawDrawer()}})})};
 
 /* ---- Suporte / Operacional ---- */
 VIEWS['suporte']=()=>{

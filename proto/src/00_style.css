@@ -473,3 +473,5 @@ body[data-mode="claro"]{--c1:#B27C26;--c2:#1F78C8;--cgoal:#7A5A1E}
 .gzint button.on.medium{background:color-mix(in srgb,var(--warn) 25%,transparent);color:var(--ink)}
 .gzint button.on.high{background:var(--gold);color:#06261F;font-weight:700}
 .gzph{white-space:nowrap}.gztbl td:first-child{min-width:170px}
+.emrule{display:flex;align-items:center;gap:14px;padding:14px 16px}
+.emrule .ti{flex:none;width:44px;height:44px;display:grid;place-items:center;border-radius:12px;font-size:20px;background:linear-gradient(140deg,#06261F,#1A5E4C);border:1px solid rgba(226,190,132,.4)}
