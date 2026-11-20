@@ -15,7 +15,7 @@ let sb=null;
 const rpcRaw=async(fn,args)=>{const{data,error}=await sb.rpc(fn,args||{});if(error)throw error;return data};
 /* ----- "Ver como": o dono/administrador vê o CRM exatamente como um membro da equipe vê (somente leitura) ----- */
 const PV={on:false,id:null,name:'',roleKey:null,scope:null,perms:{},realMe:null,team:{}};
-const PV_READ=new Set(['crm_boot','crm_me','crm_team','crm_leads_board','crm_cold_list','crm_customers_list','crm_cases_list','crm_fin_list','crm_mail_audience','crm_dashboard','crm_commission_admin','crm_campaigns']);
+const PV_READ=new Set(['crm_boot','crm_me','crm_team','crm_leads_board','crm_cold_list','crm_customers_list','crm_cases_list','crm_fin_list','crm_mail_audience','crm_dashboard','crm_commission_admin','crm_campaigns','crm_postsale_list']);
 const pvVis=o=>o==null||o===PV.id||PV.scope==='ORGANIZACAO'||(PV.scope==='EQUIPE'&&PV.team[PV.id]&&PV.team[o]===PV.team[PV.id]);
 function pvFilter(fn,d){
   const office=(PV.perms.suporte||0)>=3,admin=(PV.perms.equipe||0)>=3;
@@ -27,6 +27,7 @@ function pvFilter(fn,d){
     goals:(d.goals||[]).filter(g=>PV.scope==='ORGANIZACAO'||g.scope_type==='ORG'||g.scope_type==='TEAM'||pvVis(g.scope_id))})}
   if(fn==='crm_campaigns'&&d){const team=(PV.team||{})[PV.id];return{can_edit:(PV.perms.metas||0)>=3,items:(d.items||[]).filter(c=>PV.scope==='ORGANIZACAO'||c.scope_type==='ORG'||c.scope_type==='REGION'||(c.scope_type==='TEAM'&&c.scope_id===team)||(c.scope_type==='USER'&&pvVis(c.scope_id)))}}
   if(fn==='crm_leads_board')return(d||[]).filter(l=>l.stage==='Geladeira'||pvVis(l.owner_user_id));
+  if(fn==='crm_postsale_list'&&d)return{can_edit:office,items:office?d.items:(d.items||[]).filter(c=>pvVis(c.seller))};
   if(fn==='crm_cases_list')return office?d:(d||[]).filter(c=>pvVis(c.seller_user_id));
   if(fn==='crm_customers_list'){if(office)return d;return(d||[]).map(c=>Object.assign({},c,{cases:(c.cases||[]).filter(k=>pvVis(k.seller_user_id))})).filter(c=>pvVis(c.owner_user_id)||c.cases.length)}
   if(fn==='crm_fin_list'&&d){if(office)return Object.assign({},d,{admin,agreements:admin?d.agreements:[]});
@@ -379,7 +380,7 @@ function pvBar(){
   if(!b){b=document.createElement('div');b.id='pvbar';main.insertBefore(b,main.firstChild)}
   b.innerHTML=`${ic('eye')}<span class="grow">Você está vendo o CRM como <b>${esc(PV.name)}</b> (${esc(RK[PV.roleKey]||PV.roleKey)}). Somente leitura.</span><button class="btn sm" data-act="pv-stop">Sair da visualização</button>`;icons();
 }
-function pvReset(){try{CP.d=null;CP.orgFor=null}catch(e){}try{CA.d=null;CA.orgFor=null}catch(e){}try{DX.d=null;DX.orgFor=null;DX.team='all';DX.seller='all';DX.region='all'}catch(e){}try{FL.loaded=false;FL.orgFor=null}catch(e){}try{FC.loaded=false;FC.orgFor=null}catch(e){}try{FIN.d=null;FIN.orgFor=null;FIN.tab=null}catch(e){}}
+function pvReset(){try{PS.d=null;PS.orgFor=null;PS.seller="all"}catch(e){}try{CP.d=null;CP.orgFor=null}catch(e){}try{CA.d=null;CA.orgFor=null}catch(e){}try{DX.d=null;DX.orgFor=null;DX.team='all';DX.seller='all';DX.region='all'}catch(e){}try{FL.loaded=false;FL.orgFor=null}catch(e){}try{FC.loaded=false;FC.orgFor=null}catch(e){}try{FIN.d=null;FIN.orgFor=null;FIN.tab=null}catch(e){}}
 async function pvApply(){
   pvReset();S.ui.pop=null;closeAll();
   await reload();
