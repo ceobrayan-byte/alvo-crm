@@ -475,3 +475,12 @@ body[data-mode="claro"]{--c1:#B27C26;--c2:#1F78C8;--cgoal:#7A5A1E}
 .gzph{white-space:nowrap}.gztbl td:first-child{min-width:170px}
 .emrule{display:flex;align-items:center;gap:14px;padding:14px 16px}
 .emrule .ti{flex:none;width:44px;height:44px;display:grid;place-items:center;border-radius:12px;font-size:20px;background:linear-gradient(140deg,#06261F,#1A5E4C);border:1px solid rgba(226,190,132,.4)}
+.asmdrop{display:flex;align-items:center;gap:14px;padding:16px 18px;border:1.5px dashed var(--line2);border-radius:14px;cursor:pointer;background:color-mix(in srgb,var(--gold) 5%,transparent)}
+.asmdrop:hover{border-color:var(--gold)}.asmdrop.on{border-style:solid;border-color:var(--ok);background:color-mix(in srgb,var(--ok) 8%,transparent)}
+.asmdrop>svg{width:26px;height:26px;color:var(--accent);flex:none}.asmdrop span{display:flex;flex-direction:column}
+/* celular: indicadores em 2 colunas e abas quebrando linha */
+@media (max-width:700px){
+  .pg .g[style*="repeat(4,1fr)"],.pg .g[style*="repeat(4, 1fr)"]{grid-template-columns:1fr 1fr!important}
+  .pg [role="tablist"]{flex-wrap:wrap}
+  .pg .g[style*="grid-template-columns:2fr 1fr 1fr"],.pg .g[style*="grid-template-columns:1fr 2fr"],.pg .g[style*="grid-template-columns:1fr 1fr 1fr"],.pg .g[style*="grid-template-columns:1fr 1fr 2fr"]{grid-template-columns:1fr!important}
+}

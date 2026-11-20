@@ -449,7 +449,10 @@ async function mailFn(body){
   if(error){let m=error.message;try{const j=await error.context.json();if(j&&j.error)m=j.error}catch(e){}throw new Error(m)}
   if(data&&data.error)throw new Error(data.error);return data;
 }
-Object.assign(window,{rpc,fail,guarded,dlgAsync,fmtPhone,reload,LS,mailFn});
+/* arquivos (documentos de assembleia) no armazenamento privado */
+async function stUpload(bucket,path,file){if(PV.on)throw Object.assign(new Error('Modo "Ver como": nada é gravado.'),{code:'PV'});const{error}=await sb.storage.from(bucket).upload(path,file,{upsert:false,contentType:file.type||'application/octet-stream'});if(error)throw error;return path}
+async function stUrl(bucket,path){const{data,error}=await sb.storage.from(bucket).createSignedUrl(path,600);if(error)throw error;return data.signedUrl}
+Object.assign(window,{rpc,fail,guarded,dlgAsync,fmtPhone,reload,LS,mailFn,stUpload,stUrl});
 (async function(){
   if(!window.supabase||!CFG.url||!CFG.key){authShell('<h1>Configuração ausente</h1><p class="sm">Não foi possível carregar a biblioteca de acesso. Recarregue a página.</p>');return}
   sb=window.supabase.createClient(CFG.url,CFG.key,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true,flowType:'pkce'}});

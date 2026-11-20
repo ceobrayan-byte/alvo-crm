@@ -1,0 +1,8 @@
+-- 24: Regra do dia 10 e documento da assembleia (aplicado em 20/11/2026)
+-- * fin_installments ganhou paid_on (data real do pagamento), competence e shift_months.
+-- * crm_fin_installment2(p_org,p_case,p_n,p_confirm,p_paid): pago até o dia 10 conta no mês do pagamento;
+--   pago depois do dia 10 conta no mês seguinte e as comissões previstas (ALVO e vendedor) dessa parcela mudam de mês junto.
+--   Desfazer devolve a comissão ao mês original. Confirmações antigas (migradas) ficaram sem data de pagamento.
+-- * crm_fin_list devolve paid_on/competence/shift das mensalidades.
+-- * Bucket privado "assembleias" (PDF/imagem até 15 MB); upload só com Suporte nível 3, leitura com Suporte ≥ 1.
+-- * assemblies.document_path/document_name; com documento anexado a "fonte oficial" passa a ser opcional.
