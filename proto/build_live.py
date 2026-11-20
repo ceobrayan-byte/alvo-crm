@@ -14,6 +14,11 @@ SBJS='vendor/supabase-2.119.0.js'
 import shutil
 os.makedirs(os.path.join(out,'vendor'),exist_ok=True)
 shutil.copy(os.path.join(root,'vendor','supabase-2.119.0.js'),os.path.join(out,'vendor','supabase-2.119.0.js'))
+# logos para os e-mails (usadas pelos modelos do alvo-mail)
+import base64
+os.makedirs(os.path.join(out,'brand'),exist_ok=True)
+for n in ('ivory','positive'):
+  open(os.path.join(out,'brand','logo-%s.png'%n),'wb').write(base64.b64decode(open(os.path.join(root,'logo_%s.b64'%n)).read().strip()))
 ICONS=open(os.path.join(root,'vendor','icons.js'),encoding='utf-8').read()
 html='''<!DOCTYPE html>
 <html lang="pt-BR">

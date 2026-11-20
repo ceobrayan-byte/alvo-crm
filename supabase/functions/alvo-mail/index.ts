@@ -1,7 +1,7 @@
 // Setor de e-mails da ALVO: envia pelo Resend (remetente suporte@alvoinvestimentos.com) e registra em mail_log.
 // A chave do Resend fica só aqui (segredo RESEND_API_KEY). Quem pode usar: perfis com Suporte nível 3 (dono, admin, suporte).
 import { createClient } from 'npm:@supabase/supabase-js@2.119.0';
-import { catalog, noticeCategories, journeyEmail, noticeEmail, type Kind } from './templates.ts';
+import { catalog, noticeCategories, journeyEmail, noticeEmail, type Kind, type Campaign } from './templates.ts';
 
 const URL_ = Deno.env.get('SUPABASE_URL')!;
 const ANON = Deno.env.get('SUPABASE_ANON_KEY')!;
@@ -14,6 +14,13 @@ const json = (b: unknown, s = 200) => new Response(JSON.stringify(b), {status: s
 const html = (t: string) => new Response('<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><body style="font-family:Arial;background:#f1eee5;color:#123b2e;display:grid;place-items:center;min-height:90vh"><div style="max-width:480px;background:#fffcf6;border:1px solid #e7e0d2;border-radius:16px;padding:28px;text-align:center"><b style="letter-spacing:4px">ALVO</b><p>'+t+'</p></div>', {headers: {'Content-Type': 'text/html; charset=utf-8'}});
 const okEmail = (e: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e || '');
 const admin = createClient(URL_, SERVICE, {auth: {persistSession: false}});
+// campanha: só links seguros no botão
+function campaignOf(c: any): Campaign {
+  const u = String(c?.ctaUrl || '').trim();
+  if (u && !/^(https:\/\/|mailto:)/i.test(u)) throw new Error('O link do botão deve começar com https:// (ex.: https://wa.me/55...).');
+  const hl = Array.isArray(c?.highlights) ? c.highlights.map((x: unknown) => String(x).slice(0, 160)).slice(0, 3) : [];
+  return {eyebrow: String(c?.eyebrow || '').slice(0, 40), headline: String(c?.headline || '').slice(0, 120), subtitle: String(c?.subtitle || '').slice(0, 220), highlights: hl, ctaLabel: String(c?.ctaLabel || '').slice(0, 40), ctaUrl: u.slice(0, 500)};
+}
 // chave do Resend: segredo da função ou cofre do banco (vault, lido só com a chave de serviço)
 async function loadKey() { if (!KEY) { const {data} = await admin.rpc('mail_resend_key'); KEY = String(data || '').trim(); } return KEY; }
 
@@ -52,6 +59,21 @@ Deno.serve(async (req) => {
   try {
     await loadKey();
     if (input.action === 'status') return json({configured: RESEND().length > 0, from: FROM});
+    // prévia exata do e-mail (mesmo código do envio)
+    if (input.action === 'preview') {
+      if (input.mode === 'aviso') {
+        const subject = String(input.subject || '').trim() || 'Assunto do comunicado';
+        const m = noticeEmail(String(input.name || me.name || 'Equipe'), String(input.category || 'Aviso geral'), subject, String(input.body || '').trim() || 'Escreva a mensagem do comunicado para ver a prévia aqui.');
+        return json({subject, html: m.html});
+      }
+      const kind = String(input.template) as Kind;
+      if (!catalog.some(x => x.id === kind)) throw new Error('Escolha um modelo.');
+      let r = {name: 'Cliente ALVO', email: '', administrator: 'Canopus', group: '8400', quota: '0123', eventDate: input.eventDate || undefined};
+      if (input.caseId) { const aud = await user.rpc('crm_mail_audience', {p_org: org}); const c = (aud.data?.clients || []).find((x: any) => x.case_id === input.caseId);
+        if (c) r = {name: c.name, email: c.email, administrator: c.adm || '—', group: c.grp || '—', quota: c.quota || '—', eventDate: input.eventDate || undefined}; }
+      const m = journeyEmail(kind, r, typeof input.body === 'string' ? input.body.slice(0, 1800) : '', '#', kind === 'campaign' ? campaignOf(input.campaign) : undefined);
+      return json({subject: m.subject, html: m.html});
+    }
     if (!RESEND()) throw new Error('Envio bloqueado: falta cadastrar a chave do Resend no Supabase (segredo RESEND_API_KEY).');
 
     if (input.action === 'send') {
@@ -68,6 +90,8 @@ Deno.serve(async (req) => {
         const ref = String(input.reference || '').trim();
         if (model.needsRef && ref.length < 8) throw new Error('Informe a evidência ou regra (mín. 8 caracteres) para este modelo.');
         const eventDate = /^20\d{2}-\d\d-\d\d$/.test(input.eventDate || '') ? input.eventDate : undefined;
+        const camp = kind === 'campaign' ? campaignOf(input.campaign) : undefined;
+        if (camp && (camp.headline || '').trim().length < 5) throw new Error('Informe o título da campanha (mín. 5 caracteres).');
         if ((kind.startsWith('payment') || kind.startsWith('assembly')) && !eventDate) throw new Error('Informe a data real do vencimento/assembleia.');
         const seen = new Set<string>();
         for (const c of (aud.data.clients as any[]).filter(c => ids.includes(c.case_id))) {
@@ -82,7 +106,7 @@ Deno.serve(async (req) => {
             if (!tok) { tok = crypto.randomUUID().replace(/-/g, '') + crypto.randomUUID().replace(/-/g, ''); await admin.from('clients').update({metadata: {...(cl?.metadata || {}), mail_token: tok}}).eq('id', c.client_id); }
             unsub = URL_ + '/functions/v1/alvo-mail?unsub=' + tok;
           }
-          const m = journeyEmail(kind, {name: c.name, email: c.email, administrator: c.adm || '—', group: c.grp || '—', quota: c.quota || '—', eventDate}, body, unsub);
+          const m = journeyEmail(kind, {name: c.name, email: c.email, administrator: c.adm || '—', group: c.grp || '—', quota: c.quota || '—', eventDate}, body, unsub, camp);
           out.push({to: c.email, name: c.name, ref: c.case_id, subject: m.subject, html: m.html, text: m.text, template: kind, body: body || undefined,
             headers: unsub ? {'List-Unsubscribe': '<' + unsub + '>', 'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click'} : undefined});
         }
