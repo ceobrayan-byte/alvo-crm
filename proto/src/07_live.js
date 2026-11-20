@@ -15,7 +15,7 @@ let sb=null;
 const rpcRaw=async(fn,args)=>{const{data,error}=await sb.rpc(fn,args||{});if(error)throw error;return data};
 /* ----- "Ver como": o dono/administrador vê o CRM exatamente como um membro da equipe vê (somente leitura) ----- */
 const PV={on:false,id:null,name:'',roleKey:null,scope:null,perms:{},realMe:null,team:{}};
-const PV_READ=new Set(['crm_boot','crm_me','crm_team','crm_leads_board','crm_cold_list','crm_customers_list','crm_cases_list','crm_fin_list','crm_mail_audience','crm_dashboard','crm_commission_admin','crm_campaigns','crm_postsale_list']);
+const PV_READ=new Set(['crm_boot','crm_me','crm_team','crm_leads_board','crm_cold_list','crm_customers_list','crm_cases_list','crm_fin_list','crm_mail_audience','crm_dashboard','crm_commission_admin','crm_campaigns','crm_postsale_list','crm_cold_page']);
 const pvVis=o=>o==null||o===PV.id||PV.scope==='ORGANIZACAO'||(PV.scope==='EQUIPE'&&PV.team[PV.id]&&PV.team[o]===PV.team[PV.id]);
 function pvFilter(fn,d){
   const office=(PV.perms.suporte||0)>=3,admin=(PV.perms.equipe||0)>=3;

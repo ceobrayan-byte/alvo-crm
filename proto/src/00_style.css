@@ -461,3 +461,15 @@ body[data-mode="claro"]{--c1:#B27C26;--c2:#1F78C8;--cgoal:#7A5A1E}
 .dzside>.dztile{flex-direction:row;justify-content:flex-start;align-items:center;padding:14px 18px;border-bottom:0}
 .dzmain{display:flex;flex-direction:column;justify-content:center}
 .dzgauge .gv b{font-size:28px}
+/* ---- Geladeira ---- */
+.gztbl td{vertical-align:middle}
+.gzph{display:inline-flex;align-items:center;gap:6px;color:var(--ink);text-decoration:none}.gzph svg{width:14px;height:14px;color:var(--ok)}
+.gzdg{display:inline-grid;place-items:center;min-width:34px;height:26px;padding:0 6px;border-radius:8px;font-family:var(--font-display);font-size:16px;background:color-mix(in srgb,var(--info) 16%,transparent);color:var(--info)}
+.gzdg.warm{background:color-mix(in srgb,var(--warn) 18%,transparent);color:var(--warn)}.gzdg.hot{background:color-mix(in srgb,var(--bad) 18%,transparent);color:var(--bad)}
+.gzint{display:inline-flex;border:1px solid var(--line2);border-radius:10px;overflow:hidden}
+.gzint button{border:0;background:transparent;color:var(--ink2);font-size:12px;padding:6px 10px;cursor:pointer}
+.gzint button+button{border-left:1px solid var(--line)}
+.gzint button.on.low{background:color-mix(in srgb,var(--info) 22%,transparent);color:var(--ink)}
+.gzint button.on.medium{background:color-mix(in srgb,var(--warn) 25%,transparent);color:var(--ink)}
+.gzint button.on.high{background:var(--gold);color:#06261F;font-weight:700}
+.gzph{white-space:nowrap}.gztbl td:first-child{min-width:170px}

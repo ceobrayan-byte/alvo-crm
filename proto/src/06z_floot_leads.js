@@ -35,13 +35,13 @@ VIEWS['kanban']=()=>{
   flLoad();
   const o=O(),all=flVisible(),title=seeAllLeads()?'Funis':'Meu funil';
   const sales=all.filter(l=>l.stage===FSALES||l.fechou);
-  const board=all.filter(l=>l.stage!==FSALES&&!l.fechou);
+  const board=all.filter(l=>l.stage!==FSALES&&!l.fechou&&l.stage!=='Geladeira');
   return`<div class="pg" style="height:100%"><div class="pg-h"><div class="grow"><div class="eyebrow">${esc(o.name)}</div><h2>${title}</h2></div>
    <button class="btn pri" data-act="lead-new">${ic('plus')}Novo lead</button></div>
    <div class="row wrap">${seeAllLeads()?`<select class="in" style="width:220px" data-chg="fl-owner" aria-label="Responsável">${fOwnerOpts(FL.f.owner,true)}</select>`:''}
     <select class="in" style="width:200px" data-chg="fl-origin" aria-label="Origem"><option value="all">Todas as origens</option>${FORIGINS.map(x=>`<option ${FL.f.origin===x?'selected':''}>${x}</option>`).join('')}</select>
     <span class="end sm muted">${board.length} leads no quadro${FL.loading?' · atualizando…':''}</span></div>
-   <div class="board" style="flex:1;min-height:420px">${FSTAGES.map(s=>{const ds=board.filter(l=>l.stage===s);
+   <div class="board" style="flex:1;min-height:420px">${FSTAGES.filter(s=>s!=='Geladeira').map(s=>{const ds=board.filter(l=>l.stage===s);
      return`<div class="lcol" data-stage="${esc(s)}"><div class="kcol-h"><b>${esc(s)}</b><span class="bd mute">${ds.length}</span></div><div class="col" style="gap:9px">${ds.map(leadCard).join('')||'<div class="empty xs" style="padding:18px 6px">Sem leads</div>'}</div></div>`}).join('')}
     <div class="lcol nodrop" data-stage="${FSALES}"><div class="kcol-h"><b>Vendas efetivadas</b><span class="bd ok">${sales.length}</span></div><div class="col" style="gap:9px">${sales.map(l=>`<div class="lcard" data-act="lead-open" data-id="${l.id}"><b style="font-size:13.5px">${esc(l.name)}</b><div class="xs muted">${esc(l.owner_user_id?user(l.owner_user_id).name:'')}</div></div>`).join('')||'<div class="empty xs" style="padding:18px 6px">Nenhuma venda</div>'}</div></div>
    </div></div>`;
