@@ -1,0 +1,7 @@
+-- 25: Regra do pagamento (20/11/2026, definida pelo proprietário)
+-- Todo pagamento feito pelo cliente no mês M conta para o mês M+1 (qualquer dia do mês).
+-- * _fin_generate: comissão do VENDEDOR da parcela n = mês da venda + n (antes: + n-1). Receita ALVO inalterada (calendário da administradora).
+-- * Previsões existentes do vendedor corrigidas para nunca ficarem antes do mês seguinte ao da parcela
+--   (ex.: José Daniel e Paulo Brincker, parcela 1 → dezembro/2026). Lançamentos já pagos não foram alterados.
+-- * crm_fin_installment2: ao confirmar com a data real, a comissão do vendedor daquela parcela vai para o mês seguinte ao pagamento.
+-- * Vencimento continua no dia 10 (alerta de atraso a partir do dia 11).
