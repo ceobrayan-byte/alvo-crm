@@ -6,13 +6,16 @@ import { catalog, noticeCategories, journeyEmail, noticeEmail, type Kind } from 
 const URL_ = Deno.env.get('SUPABASE_URL')!;
 const ANON = Deno.env.get('SUPABASE_ANON_KEY')!;
 const SERVICE = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-const RESEND = () => (Deno.env.get('RESEND_API_KEY') || '').trim();
+let KEY = (Deno.env.get('RESEND_API_KEY') || '').trim();
+const RESEND = () => KEY;
 const FROM = 'ALVO Investimentos <suporte@alvoinvestimentos.com>';
 const cors = {'Access-Control-Allow-Origin':'*','Access-Control-Allow-Headers':'authorization, x-client-info, apikey, content-type','Access-Control-Allow-Methods':'GET, POST, OPTIONS'};
 const json = (b: unknown, s = 200) => new Response(JSON.stringify(b), {status: s, headers: {...cors, 'Content-Type': 'application/json'}});
 const html = (t: string) => new Response('<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><body style="font-family:Arial;background:#f1eee5;color:#123b2e;display:grid;place-items:center;min-height:90vh"><div style="max-width:480px;background:#fffcf6;border:1px solid #e7e0d2;border-radius:16px;padding:28px;text-align:center"><b style="letter-spacing:4px">ALVO</b><p>'+t+'</p></div>', {headers: {'Content-Type': 'text/html; charset=utf-8'}});
 const okEmail = (e: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e || '');
 const admin = createClient(URL_, SERVICE, {auth: {persistSession: false}});
+// chave do Resend: segredo da função ou cofre do banco (vault, lido só com a chave de serviço)
+async function loadKey() { if (!KEY) { const {data} = await admin.rpc('mail_resend_key'); KEY = String(data || '').trim(); } return KEY; }
 
 async function resend(path: string, init: RequestInit = {}) {
   const r = await fetch('https://api.resend.com' + path, {...init, signal: AbortSignal.timeout(15000), headers: {Authorization: 'Bearer ' + RESEND(), 'Content-Type': 'application/json', ...(init.headers || {})}});
@@ -47,6 +50,7 @@ Deno.serve(async (req) => {
   const me = can.data as {user_id: string; name: string};
 
   try {
+    await loadKey();
     if (input.action === 'status') return json({configured: RESEND().length > 0, from: FROM});
     if (!RESEND()) throw new Error('Envio bloqueado: falta cadastrar a chave do Resend no Supabase (segredo RESEND_API_KEY).');
 

@@ -10,10 +10,10 @@ function glPanel(){
   const real=id=>d.sales.filter(s=>{const t=dxDay(s.date);return s.seller===id&&t>=cyc.start&&t<=cyc.end}).reduce((a,s)=>a+Number(s.credit||0),0);
   const people=d.members.filter(m=>!['SUPORTE','FINANCEIRO'].includes(m.role)&&m.status!=='INATIVO');
   const inp=(t,id,v)=>can?`<input class="in num" style="width:150px" type="number" step="1000" min="0" data-goal="${t}|${esc(id)}" value="${v??''}" placeholder="sem meta">`:`<span class="num">${v!=null?esc(dxM(v)):'—'}</span>`;
-  const og=g('ORG',S.orgId)??(cyc.key===cycles[0].key?Number(d.org_goal)||null:null),sumInd=people.reduce((a,m)=>a+(g('USER',m.id)||0),0);
+  const sumInd=people.reduce((a,m)=>a+(g('USER',m.id)||0),0);
   return`<div class="card col" style="gap:12px"><div class="row sp wrap"><div><div class="eyebrow">Metas do ciclo</div><b>${can?'Defina as metas de cada pessoa e da empresa':'Metas definidas pela diretoria'}</b></div>
-   <select class="in" style="width:260px" data-chg="gl-cyc">${all.map(c=>`<option value="${c.key}" ${c.key===GL.cyc?'selected':''}>Ciclo ${dxLabel(c)}${c===nxt?' (próximo)':c.key===cycles[0].key?' (atual)':''}</option>`).join('')}</select></div>
-   ${d.scope==='ORGANIZACAO'?`<div class="row wrap"><span class="sm">Meta geral da empresa</span>${inp('ORG',S.orgId,og)}<span class="xs muted">soma das metas individuais: ${esc(dxM(sumInd))}</span></div>`:''}
+   <select class="in" style="width:260px" data-chg="gl-cyc">${all.map(c=>`<option value="${c.key}" ${c.key===GL.cyc?'selected':''}>${esc(dxCLabel(c))}${c===nxt?' (próximo)':c.key===cycles[0].key?' (atual)':''}</option>`).join('')}</select></div>
+   ${d.scope==='ORGANIZACAO'?`<div class="row wrap" style="gap:10px"><span class="sm">Meta da empresa no ciclo</span><b class="num">${esc(dxBRL(sumInd))}</b><span class="xs muted">soma das metas individuais (igual ao Floot)</span></div>`:''}
    <div class="tbl-wrap"><table class="tbl"><thead><tr><th>Pessoa</th><th>Equipe · região</th><th>Meta</th><th>Realizado</th><th>Atingimento</th></tr></thead><tbody>
     ${people.map(m=>{const v=g('USER',m.id),r=real(m.id),t=d.teams.find(x=>x.id===m.team_id),rg=d.regions.find(x=>x.id===m.region_id);
      return`<tr><td><b>${esc(m.role==='PROPRIETARIO'?'Escritório · '+fname(m.name):m.name)}</b><div class="xs muted">${esc(({PROPRIETARIO:'Proprietário',ADMINISTRADOR:'Administrador',GESTOR:'Coordenador',VENDEDOR:'Vendedor'})[m.role]||m.role)}</div></td>
@@ -37,28 +37,28 @@ function glRanking(){
   const val=list=>GL.met==='vendas'?list.length:list.reduce((a,s)=>a+Number(s.credit||0),0);
   const fmt=v=>GL.met==='vendas'?v+' venda'+(v===1?'':'s'):dxM(v);
   let groups=[];
-  if(GL.dim==='seller'){const ids=[...new Set(d.members.filter(m=>!['SUPORTE','FINANCEIRO'].includes(m.role)).map(m=>m.id).concat(sales.map(s=>s.seller)))];
+  if(GL.dim==='seller'){const ids=[...new Set(d.members.filter(m=>!['SUPORTE','FINANCEIRO'].includes(m.role)&&(m.status!=='INATIVO'||ug(m.id)>0)).map(m=>m.id).concat(sales.map(s=>s.seller)))];
     groups=ids.map(id=>({id,label:dxName(id),sub:(d.teams.find(t=>t.id===dxMem(id).team_id)||{}).name||'',ids:[id]}))}
   else if(GL.dim==='team'){groups=d.teams.map(t=>({id:t.id,label:t.coordinator?dxName(t.coordinator):t.name,sub:t.name,ids:d.members.filter(m=>m.team_id===t.id).map(m=>m.id)}))}
   else{groups=d.regions.map(r=>({id:r.id,label:r.name,sub:'',ids:d.members.filter(m=>m.region_id===r.id).map(m=>m.id)})).filter(g=>g.ids.length)}
   const rows=groups.map(g=>{const ss=sales.filter(s=>g.ids.includes(s.seller)),goal=g.ids.reduce((a,id)=>a+ug(id),0),cred=ss.reduce((a,s)=>a+Number(s.credit||0),0);
     return Object.assign(g,{n:ss.length,cred,v:val(ss),goal,att:goal?cred/goal:null})});
   const key=GL.met==='atingimento'?(r=>r.att==null?-1:r.att):(r=>r.v);
-  rows.sort((a,b)=>key(b)-key(a));
-  const top=rows.filter(r=>key(r)>0).slice(0,3),ord=[1,0,2].filter(i=>top[i]),medal=['1º','2º','3º'];
+  const off=r=>GL.dim==='seller'&&dxIsOffice(r.id);rows.sort((a,b)=>off(a)!==off(b)?(off(a)?1:-1):key(b)-key(a));
+  const top=rows.filter(r=>key(r)>0&&!off(r)).slice(0,3),ord=[1,0,2].filter(i=>top[i]),medal=['1º','2º','3º'];
   const show=r=>GL.met==='atingimento'?(r.att==null?'sem meta':Math.round(r.att*100)+'%'):fmt(r.v);
   const isMe=r=>r.ids.includes(ME)&&GL.dim==='seller';
   const tabs=[['seller','Vendedores'],...(d.teams.length>1?[['team','Coordenadores / equipes']]:[]),...(d.scope==='ORGANIZACAO'&&d.regions.length?[['region','Regiões']]:[])];
   if(!tabs.some(t=>t[0]===GL.dim))GL.dim='seller';
   const maxv=Math.max(1,...rows.map(r=>GL.met==='atingimento'?(r.att||0):r.v));
   return`<div class="row wrap dxfil">
-    <select class="in" data-chg="gl-rcyc">${cycles.map((c,i)=>`<option value="${c.key}" ${c.key===GL.rcyc?'selected':''}>Ciclo ${dxLabel(c)}${i===0?' (atual)':''}</option>`).join('')}<option value="all" ${GL.rcyc==='all'?'selected':''}>Desde o início</option></select>
+    <select class="in" data-chg="gl-rcyc">${cycles.map((c,i)=>`<option value="${c.key}" ${c.key===GL.rcyc?'selected':''}>${esc(dxCLabel(c))}${i===0?' · atual':''}</option>`).join('')}<option value="all" ${GL.rcyc==='all'?'selected':''}>Desde o início</option></select>
     <div class="row" role="tablist" style="gap:6px">${tabs.map(t=>`<button class="btn sm ${GL.dim===t[0]?'pri':''}" data-act="gl-dim" data-id="${t[0]}">${t[1]}</button>`).join('')}</div>
     <select class="in" data-chg="gl-met"><option value="credito" ${GL.met==='credito'?'selected':''}>Por crédito vendido</option><option value="vendas" ${GL.met==='vendas'?'selected':''}>Por número de vendas</option>${cyc?`<option value="atingimento" ${GL.met==='atingimento'?'selected':''}>Por atingimento da meta</option>`:''}</select></div>
    ${top.length?`<div class="card"><div class="podium big">${ord.map(i=>`<div class="pod p${i+1}"><div class="pav">${i===0?'<span class="crown">👑</span>':''}${avN(top[i].label,i===0?64:52)}</div><b>${esc(top[i].label)}</b><span class="sm num">${esc(show(top[i]))}</span>${top[i].att!=null&&GL.met!=='atingimento'?`<span class="xs muted">${Math.round(top[i].att*100)}% da meta</span>`:''}<div class="pbase"><span>${medal[i]}</span></div></div>`).join('')}</div></div>`:'<div class="empty">Ninguém pontuou neste período ainda.</div>'}
    <div class="card"><div class="row sp"><b class="sm">Classificação completa</b><span class="xs muted dxleg"><i class="k1"></i>${GL.met==='atingimento'?'atingimento':'resultado'}${cyc&&GL.met!=='atingimento'?'<i class="kg"></i>meta':''}</span></div>
     <div class="rk">${rows.map((r,i)=>{const v=GL.met==='atingimento'?(r.att||0):r.v,g=GL.met==='credito'&&r.goal?r.goal:GL.met==='atingimento'&&r.goal?1:null;
-     return`<div class="rkrow ${isMe(r)?'me':''}" data-tip="${esc(r.label)}|${esc(fmt(r.v))} · ${r.n} venda(s)${r.goal?'|Meta: '+esc(dxM(r.goal))+' · '+Math.round(r.att*100)+'%':''}"><span class="pos">${i+1}º</span>${avN(r.label,30)}<span class="nm"><b>${esc(r.label)}</b>${r.sub&&GL.dim!=='region'?`<div class="xs muted">${esc(r.sub)}</div>`:''}</span>
+     return`<div class="rkrow ${isMe(r)?'me':''}" data-tip="${esc(r.label)}|${esc(fmt(r.v))} · ${r.n} venda(s)${r.goal?'|Meta: '+esc(dxM(r.goal))+' · '+Math.round(r.att*100)+'%':''}"><span class="pos">${off(r)?'—':(i+1)+'º'}</span>${avN(r.label,30)}<span class="nm"><b>${esc(r.label)}</b>${off(r)?'<div class="xs muted">Fora da competição</div>':r.sub&&GL.dim!=='region'?`<div class="xs muted">${esc(r.sub)}</div>`:''}</span>
       <span class="trk"><i style="width:${(v/Math.max(maxv,g||0)*100).toFixed(1)}%"></i>${g?`<b class="gt" style="left:${(g/Math.max(maxv,g)*100).toFixed(1)}%"></b>`:''}</span><span class="num val">${esc(show(r))}</span></div>`}).join('')}</div></div>`;
 }
 /* ---- campanhas, desafios e premiações ---- */
@@ -82,7 +82,7 @@ function glCampaigns(){
     <h3 style="font-size:17px">${esc(c.title)}</h3>${c.description?`<div class="sm muted">${esc(c.description)}</div>`:''}
     <div class="row wrap sm" style="gap:14px"><span>${ic('target')} Meta: <b>${esc(fmt(c,tgt))}</b> ${coll?'(soma do grupo)':'(cada pessoa)'}</span><span>${ic('users')} ${esc(cpScopeLabel(c))}</span><span>${ic('calendar')} ${esc(String(c.starts_on).split('-').reverse().join('/'))} a ${esc(String(c.ends_on).split('-').reverse().join('/'))}</span>${c.reward?`<span>${ic('gift')} Prêmio: <b>${esc(c.reward)}</b></span>`:''}</div>
     ${coll?`<div><div class="row sp xs"><span>${esc(fmt(c,p.total))} de ${esc(fmt(c,tgt))}</span><b>${Math.round(pct*100)}%</b></div><div class="bar" style="height:10px;margin-top:6px"><i style="width:${Math.min(100,pct*100).toFixed(0)}%"></i></div></div>`
-     :`<div class="rk">${p.rows.slice(0,8).map((r,i)=>`<div class="rkrow ${r.id===ME?'me':''}"><span class="pos">${i+1}º</span>${avN(r.label,26)}<span class="nm"><b class="sm">${esc(r.label)}</b></span><span class="trk"><i style="width:${Math.min(100,r.v/tgt*100).toFixed(0)}%"></i></span><span class="num val">${esc(fmt(c,r.v))}${r.v>=tgt?' ✅':''}</span></div>`).join('')||'<div class="xs muted">Ninguém pontuou ainda.</div>'}</div>
+     :`<div class="rk">${p.rows.slice(0,8).map((r,i)=>`<div class="rkrow ${r.id===ME?'me':''}"><span class="pos">${off(r)?'—':(i+1)+'º'}</span>${avN(r.label,26)}<span class="nm"><b class="sm">${esc(r.label)}</b></span><span class="trk"><i style="width:${Math.min(100,r.v/tgt*100).toFixed(0)}%"></i></span><span class="num val">${esc(fmt(c,r.v))}${r.v>=tgt?' ✅':''}</span></div>`).join('')||'<div class="xs muted">Ninguém pontuou ainda.</div>'}</div>
       ${hit.length?`<div class="xs"><b>${hit.length}</b> pessoa(s) já bateram a meta da ${CP_KIND[c.kind].toLowerCase()}.</div>`:''}`}</div>`};
   const items=d.items||[];
   return`<div class="row sp"><span class="sm muted">${d.can_edit?'Crie campanhas, desafios e premiações. O progresso é calculado sozinho pelas vendas efetivadas no período.':'Campanhas e desafios definidos pela diretoria.'}</span>${d.can_edit?`<button class="btn pri" data-act="cp-new">${ic('plus')}Nova campanha / desafio</button>`:''}</div>
