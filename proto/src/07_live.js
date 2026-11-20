@@ -91,7 +91,7 @@ function authShell(inner){$('#app').innerHTML=`<div class="auth"><div class="aut
 function authErr(m,ok){const e=$('#aerr');if(e){e.className=ok?'ok':'err';e.textContent=m||''}}
 function authMsg(e){
   const m=(e&&e.message)||String(e);
-  if(/Invalid login credentials/i.test(m))return'E-mail ou senha incorretos.';
+  if(/Invalid login credentials/i.test(m))return'E-mail ou senha incorretos. A senha do sistema antigo não vale aqui: use a senha provisória que a ALVO enviou para o seu e-mail (assunto "Seu acesso ao CRM ALVO") ou peça um novo acesso ao gestor.';
   if(/Email not confirmed/i.test(m))return'Confirme seu e-mail pelo link que enviamos antes de entrar.';
   if(/already registered|already been registered/i.test(m))return'Este e-mail já tem conta. Use Entrar.';
   if(/Password should be|at least/i.test(m))return'A senha precisa ter pelo menos 8 caracteres.';
@@ -426,7 +426,7 @@ CHG.uteam=async el=>{const u=user(el.dataset.id),t=(O().teams||[]).find(x=>x.nam
 {const UD0=userDrawer;userDrawer=function(id){const h=UD0(id);if(!LIVE)return h;const u=user(id),can=LV('equipe')>=3;
   const base=h.replace(/<div class="dr-f">[\s\S]*<\/div>$/,'').replace(/<input class="in" data-chg="ucargo"[^>]*>/,`<input class="in" value="${esc(u.cargo)}" disabled>`);
   if(!can)return base;
-  return base+`<div class="dr-f"><button class="btn" data-act="u-edit" data-id="${id}">${ic('pencil')}Editar dados</button>${id!==ME&&u.role!=='Proprietário'?`<button class="btn" data-act="u-toggle" data-id="${id}">${ic(u.status==='Ativo'?'user-x':'user-check')}${u.status==='Ativo'?'Desativar':'Reativar'}</button><button class="btn" style="color:var(--bad)" data-act="u-del" data-id="${id}">${ic('trash-2')}Excluir</button>`:''}</div>`}}
+  return base+`<div class="dr-f"><button class="btn pri" data-act="u-access" data-id="${id}">${ic('key-round')}Enviar acesso</button><button class="btn" data-act="u-edit" data-id="${id}">${ic('pencil')}Editar dados</button>${id!==ME&&u.role!=='Proprietário'?`<button class="btn" data-act="u-toggle" data-id="${id}">${ic(u.status==='Ativo'?'user-x':'user-check')}${u.status==='Ativo'?'Desativar':'Reativar'}</button><button class="btn" style="color:var(--bad)" data-act="u-del" data-id="${id}">${ic('trash-2')}Excluir</button>`:''}</div>`}}
 ACT['u-edit']=el=>{const u=user(el.dataset.id);
   dialog({title:'Editar dados',sub:esc(u.name),submit:'Salvar',body:`<div class="g" style="grid-template-columns:1fr 1fr;gap:12px"><label class="fld">Nome<input class="in" name="name" required maxlength="120" value="${esc(u.name)}"></label><label class="fld">Cargo / função<input class="in" name="job_title" maxlength="80" value="${esc(u.job||'')}" placeholder="${esc(u.role)}"></label>
    <label class="fld">E-mail de acesso<input class="in" type="email" name="email" value="${esc(u.email||'')}"></label><label class="fld">Telefone<input class="in" name="phone" value="${esc(u.phone||'')}"></label></div><div class="xs muted">O e-mail é o login da pessoa. Vendas, comissões e leads continuam vinculados.</div>`,
@@ -440,6 +440,23 @@ ACT['u-del']=async el=>{const u=user(el.dataset.id);
   const ok=await guarded(async()=>{await rpc('crm_member_edit',{p_org:S.orgId,p_user:u.id,p_data:{action:'remove'}});await reload()});
   if(ok){toast(`${esc(fname(u.name))} excluído(a) da equipe`,{icon:'trash-2'});closeAll()}};
 
+/* acesso ao CRM: senha provisória por e-mail (função alvo-access) */
+async function uAccess(u,quiet){if(PV.on)throw Object.assign(new Error('Modo "Ver como": nada é enviado.'),{code:'PV'});return fnCall('alvo-access',{org:S.orgId,user_id:u.id,send_email:true})}
+function uAccessShow(u,r){const msg=`Olá, ${fname(u.name)}! Seu acesso ao CRM ALVO:\n${r.url}\nE-mail: ${r.email}\nSenha provisória: ${r.password}\nNo primeiro acesso você cria sua senha definitiva.`;
+  dialog({title:'Acesso enviado',sub:esc(u.name),submit:'Fechar',body:`<div class="sm">${r.sent?`${ic('mail-check')} E-mail enviado para <b>${esc(r.email)}</b>.`:`<span style="color:var(--warn)">E-mail não enviado (${esc(r.mailError||'')}). Envie os dados abaixo pelo WhatsApp.</span>`}</div>
+   <div class="card" style="padding:14px"><div class="xs muted">Endereço</div><b>${esc(r.url)}</b><div class="xs muted" style="margin-top:8px">E-mail</div><b>${esc(r.email)}</b><div class="xs muted" style="margin-top:8px">Senha provisória</div><b class="num" style="font-size:20px;letter-spacing:1px">${esc(r.password)}</b></div>
+   <div class="xs muted">No primeiro acesso o CRM pede para criar a senha definitiva. A senha antiga não vale mais.</div>
+   <div class="row" style="gap:8px"><button type="button" class="btn sm" data-act="u-copy" data-id="${esc(encodeURIComponent(msg))}">${ic('copy')}Copiar mensagem</button><a class="btn sm" target="_blank" rel="noopener" href="https://wa.me/?text=${encodeURIComponent(msg)}">${ic('message-circle')}Enviar no WhatsApp</a></div>`,onSubmit:()=>{}})}
+ACT['u-access']=async el=>{const u=user(el.dataset.id);if(!confirm(`Gerar uma nova senha provisória para ${u.name} e enviar por e-mail? A senha atual dela deixa de valer.`))return;
+  await guarded(async()=>{const r=await uAccess(u);uAccessShow(u,r)})};
+ACT['u-copy']=el=>{const t=decodeURIComponent(el.dataset.id);try{navigator.clipboard.writeText(t).then(()=>toast('Mensagem copiada',{icon:'copy'}),()=>toast('Não consegui copiar',{icon:'x'}))}catch(e){}};
+ACT['u-access-all']=async()=>{const list=O().users.filter(u=>u.status==='Ativo'&&u.role!=='Proprietário'&&u.id!==ME);
+  if(!confirm(`Enviar acesso (senha provisória por e-mail) para ${list.length} pessoa(s): ${list.map(u=>fname(u.name)).join(', ')}? As senhas atuais deixam de valer.`))return;
+  let ok=0;const fails=[],rows=[];for(const u of list){try{const r=await uAccess(u);ok++;rows.push([u,r])}catch(e){fails.push(fname(u.name)+': '+(e.message||e))}}
+  dialog({title:'Acessos enviados',sub:ok+' de '+list.length,submit:'Fechar',wide:true,body:`<div class="tbl-wrap"><table class="tbl"><thead><tr><th>Pessoa</th><th>E-mail</th><th>Senha provisória</th><th>E-mail enviado</th></tr></thead><tbody>${rows.map(([u,r])=>`<tr><td><b class="sm">${esc(u.name)}</b></td><td class="sm">${esc(r.email)}</td><td class="num"><b>${esc(r.password)}</b></td><td>${r.sent?'<span class="bd ok">sim</span>':'<span class="bd warn">não</span>'}</td></tr>`).join('')}</tbody></table></div>${fails.length?`<div class="sm" style="color:var(--bad)">${fails.map(esc).join('<br>')}</div>`:''}<div class="xs muted">Guarde esta lista agora: as senhas não ficam salvas no sistema.</div>`,onSubmit:()=>{}})};
+{const EQ0=VIEWS['equipe'];VIEWS['equipe']=()=>{const h=EQ0();if(!LIVE||LV('equipe')<3)return h;
+  return h.replace(`<button class="btn pri" data-act="invite">`,`<button class="btn" data-act="u-access-all">${ic('key-round')}Enviar acesso para a equipe</button><button class="btn pri" data-act="invite">`)}}
+
 /* ----- início ----- */
 /* os módulos Leads, Clientes e Financeiro (06z_*) usam estas funções: precisam estar visíveis fora deste bloco */
 /* envio de e-mails (função alvo-mail no Supabase; a chave do Resend fica lá) */
@@ -452,7 +469,8 @@ async function mailFn(body){
 /* arquivos (documentos de assembleia) no armazenamento privado */
 async function stUpload(bucket,path,file){if(PV.on)throw Object.assign(new Error('Modo "Ver como": nada é gravado.'),{code:'PV'});const{error}=await sb.storage.from(bucket).upload(path,file,{upsert:false,contentType:file.type||'application/octet-stream'});if(error)throw error;return path}
 async function stUrl(bucket,path){const{data,error}=await sb.storage.from(bucket).createSignedUrl(path,600);if(error)throw error;return data.signedUrl}
-Object.assign(window,{rpc,fail,guarded,dlgAsync,fmtPhone,reload,LS,mailFn,stUpload,stUrl});
+async function fnCall(name,body){const{data,error}=await sb.functions.invoke(name,{body});if(error){let m=error.message;try{const j=await error.context.json();if(j&&j.error)m=j.error}catch(e){}throw new Error(m)}if(data&&data.error)throw new Error(data.error);return data}
+Object.assign(window,{rpc,fail,guarded,dlgAsync,fmtPhone,reload,LS,mailFn,stUpload,stUrl,fnCall});
 (async function(){
   if(!window.supabase||!CFG.url||!CFG.key){authShell('<h1>Configuração ausente</h1><p class="sm">Não foi possível carregar a biblioteca de acesso. Recarregue a página.</p>');return}
   sb=window.supabase.createClient(CFG.url,CFG.key,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true,flowType:'pkce'}});
