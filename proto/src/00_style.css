@@ -511,3 +511,5 @@ body[data-mode="claro"]{--c1:#B27C26;--c2:#1F78C8;--cgoal:#7A5A1E}
 .clopt svg{width:16px;height:16px;color:var(--accent)}
 .clfoot{padding:14px 22px;border-top:1px solid var(--line);gap:8px;align-items:center}
 @media (max-width:760px){.clbody{grid-template-columns:minmax(0,1fr)}.clnav{flex-direction:row;overflow-x:auto;border-right:0;border-bottom:1px solid var(--line)}.clnav button{white-space:nowrap}.clobj{grid-template-columns:1fr}}
+.clmeet{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:10px 22px;border-bottom:1px solid var(--line);background:color-mix(in srgb,var(--info) 6%,transparent)}
+.clmeet .in{flex:1 1 260px;width:auto;height:34px}.clmeet>span svg{width:14px;height:14px;vertical-align:-2px}

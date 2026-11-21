@@ -55,9 +55,11 @@ function clRender(){
   return`<div class="dlg clwin" role="dialog" aria-modal="true" aria-label="Modo call"><form data-form="dlg" class="col" style="gap:0">
    <div class="clhead"><div class="grow"><div class="eyebrow">Modo call · ${esc(l.stage)}</div><h3 class="disp" style="font-size:26px">${esc(l.name)}</h3>
      <div class="row wrap" style="gap:8px;margin-top:4px">${ph?`<a class="btn sm" href="tel:${ph}">${ic('phone')}${esc(fmtPhone(l.phone))}</a><a class="btn sm" target="_blank" rel="noopener" href="https://wa.me/55${ph.replace(/^55/,'')}">${ic('message-circle')}WhatsApp</a>`:''}
-      <div class="row" role="tablist" style="gap:4px">${['Call 1','Call 2'].map(x=>`<button type="button" class="btn sm ${k===x?'pri':''}" data-act="cl-kind" data-id="${x}">${x}</button>`).join('')}</div></div></div>
+      <button type="button" class="btn sm pri" data-act="cl-meet">${ic('video')}Abrir Google Meet</button><div class="row" role="tablist" style="gap:4px">${['Call 1','Call 2'].map(x=>`<button type="button" class="btn sm ${k===x?'pri':''}" data-act="cl-kind" data-id="${x}">${x}</button>`).join('')}</div></div></div>
      <div class="cltimer"><span class="xs muted">Duração</span><b id="cltime" class="num">00:00</b></div>
      <button type="button" class="ibtn" data-act="close-modal" aria-label="Fechar">${ic('x')}</button></div>
+   <div class="clmeet"><span class="xs muted">${ic('video')} Videochamada</span><input class="in" id="clmeet" name="meet" placeholder="Cole aqui o link do Meet (meet.google.com/…)" value="${esc(CL.meet||'')}">
+     <button type="button" class="btn sm" data-act="cl-inv-wa">${ic('message-circle')}Enviar convite no WhatsApp</button><button type="button" class="btn sm ghost" data-act="cl-inv-copy">${ic('copy')}Copiar convite</button></div>
    <div class="clbody"><nav class="clnav">${steps.map((s,i)=>`<button type="button" data-act="cl-go" data-id="cl-${s[0]}"><span>${i+1}</span>${esc(s[1])}</button>`).join('')}<button type="button" data-act="cl-go" data-id="cl-resultado"><span>✓</span>Resultado</button></nav>
     <div class="clsteps" id="clsteps">${steps.map((s,i)=>`<section id="cl-${s[0]}" class="clstep"><div class="eyebrow">Etapa ${i+1}</div><h4>${esc(s[1])}</h4>${s[2]}</section>`).join('')}
      <section id="cl-resultado" class="clstep"><div class="eyebrow">Fechar a call</div><h4>Resultado</h4>
@@ -81,7 +83,18 @@ async function clSave(f){
     toast(`${esc(CL.kind)} registrada · ${esc(l.name)} agora em <b>${esc(r.lead.stage)}</b>${next?' · próxima call agendada nas tarefas':''}`,{icon:'phone-call',ms:6000});
     if(f.outcome==='fechou'||f.outcome==='fechamento')setTimeout(()=>{if(confirm('Abrir agora a efetivação da venda deste cliente?'))ACT['lead-sell']({dataset:{id:l.id}})},300);
     if(next)reload().catch(()=>{});refresh();if(S.ui.drawer)redrawDrawer()})}
-ACT['cl-start']=el=>clOpen(el.dataset.id);
+ACT['cl-start']=el=>{CL.meet='';clOpen(el.dataset.id)};
+/* Google Meet ao lado do CRM (o Google não permite abrir o Meet dentro de outro site) */
+ACT['cl-meet']=()=>{const W=screen.availWidth||1440,H=screen.availHeight||900,w=Math.round(W*.55);
+  const win=window.open('https://meet.google.com/new','alvo-meet',`popup=yes,width=${w},height=${H},left=${W-w},top=0`);
+  if(!win){toast('O navegador bloqueou a janela. Permita pop-ups para crm.alvoinvestimentos.com.br.',{icon:'triangle-alert',ms:7000});return}
+  toast('Meet aberto ao lado. Ele usa a conta Google logada neste navegador (o e-mail do vendedor). Copie o link da reunião e cole no campo "Videochamada".',{icon:'video',ms:9000})};
+const clInvite=()=>{const l=FL.leads.find(x=>x.id===CL.lead)||{},link=(($('#clmeet')||{}).value||'').trim();CL.meet=link;
+  if(!/^https:\/\/meet\.google\.com\/[a-z0-9-]+/i.test(link)){toast('Cole o link do Meet (https://meet.google.com/...) no campo Videochamada.',{icon:'triangle-alert'});return null}
+  return{l,link,msg:`Olá, ${clCap(fname(l.name||''))}! Aqui é ${fname(user(ME).name||'')} da ALVO Investimentos. Segue o link da nossa videochamada: ${link}`}};
+ACT['cl-inv-wa']=()=>{const r=clInvite();if(!r)return;const ph=String(r.l.phone||'').replace(/\D/g,'').replace(/^55/,'');window.open(`https://wa.me/${ph?'55'+ph:''}?text=${encodeURIComponent(r.msg)}`,'_blank','noopener')};
+ACT['cl-inv-copy']=()=>{const r=clInvite();if(!r)return;try{navigator.clipboard.writeText(r.msg).then(()=>toast('Convite copiado',{icon:'copy'}))}catch(e){}};
+document.addEventListener('input',ev=>{if(ev.target&&ev.target.id==='clmeet')CL.meet=ev.target.value});
 ACT['cl-kind']=el=>{CL.kind=el.dataset.id;openModal(clRender);clTick()};
 ACT['cl-go']=(el,ev)=>{try{ev&&ev.preventDefault&&ev.preventDefault()}catch(e){}const t=document.getElementById(el.dataset.id);if(t)t.scrollIntoView({behavior:'smooth',block:'start'})};
 ACT['cl-obj']=()=>{};
