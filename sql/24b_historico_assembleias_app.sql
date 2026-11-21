@@ -1,0 +1,48 @@
+-- 24b · Histórico de resultados de assembleia que existia só no APP ALVO (19 registros),
+-- copiado para o CRM como fonte única. Resultados AGREGADOS por grupo: não confirmam cota individual.
+-- sent = 0 e origin = 'historico-app': importação, nenhum e-mail foi ou será disparado por esta carga.
+INSERT INTO assemblies (organization_id, adm, grp, held_on, min_bid, max_bid, summary, evidence, created_by, sent, origin, details)
+SELECT 'ORG-000001', v.adm, v.grp, v.d::date, (v.x->>'freeMinPct')::numeric, (v.x->>'freeMaxPct')::numeric,
+  'Resultado agregado do grupo (histórico importado do APP ALVO).', v.ref, 'Histórico APP ALVO', 0, 'historico-app',
+  v.x || jsonb_build_object('status', v.st, 'source', v.src, 'scope', coalesce(v.scope, 'Resultado agregado por grupo; não confirma cota individual'))
+FROM (VALUES
+ ('Canopus','8122','2026-09-15','Resultado efetivo — confirmado pela ALVO','Canopus • Relatório de prováveis contemplados (PDF do Drive ALVO)','https://drive.google.com/file/d/15pr8QqjZSNu5KdyHe7HyfyUGZiQMUYFg/view','Resultado agregado por grupo; não confirma cota individual',
+  '{"draw":1,"bid":10,"free":5,"fixed":1,"limited":4,"freeMinPct":80,"freeMaxPct":86.2348,"basis":"OWNER_CONFIRMED_GROUP_AGGREGATE","bidDataAvailable":true}'::jsonb),
+ ('Canopus','8122','2026-10-15','Resultado efetivo — confirmado pela ALVO','Canopus • Relatório de prováveis contemplados (PDF do Drive ALVO)','https://drive.google.com/file/d/1_B21TVYDLkziHUQhS0rO4qQ9G4IvyMyT/view','Resultado agregado por grupo; não confirma cota individual',
+  '{"draw":1,"bid":18,"free":9,"fixed":1,"limited":8,"freeMinPct":80,"freeMaxPct":96.6628,"basis":"OWNER_CONFIRMED_GROUP_AGGREGATE","bidDataAvailable":true}'),
+ ('Canopus','8123','2026-10-15','Resultado efetivo — confirmado pela ALVO','Canopus • Relatório de prováveis contemplados (PDF do Drive ALVO)','https://drive.google.com/file/d/1_B21TVYDLkziHUQhS0rO4qQ9G4IvyMyT/view','Resultado agregado por grupo; não confirma cota individual',
+  '{"draw":1,"bid":6,"free":3,"fixed":1,"limited":2,"freeMinPct":78.4659,"freeMaxPct":80,"basis":"OWNER_CONFIRMED_GROUP_AGGREGATE","bidDataAvailable":true}'),
+ ('Canopus','8400','2026-09-15','Resultado efetivo — confirmado pela ALVO','Canopus • Relatório de prováveis contemplados (PDF do Drive ALVO)','https://drive.google.com/file/d/15pr8QqjZSNu5KdyHe7HyfyUGZiQMUYFg/view','Resultado agregado por grupo; não confirma cota individual',
+  '{"draw":1,"bid":17,"free":8,"fixed":2,"limited":7,"freeMinPct":85.2,"freeMaxPct":85.3376,"basis":"OWNER_CONFIRMED_GROUP_AGGREGATE","bidDataAvailable":true}'),
+ ('Canopus','8400','2026-10-15','Resultado efetivo — confirmado pela ALVO','Canopus • Relatório de prováveis contemplados (PDF do Drive ALVO)','https://drive.google.com/file/d/1_B21TVYDLkziHUQhS0rO4qQ9G4IvyMyT/view','Resultado agregado por grupo; não confirma cota individual',
+  '{"draw":1,"bid":25,"free":12,"fixed":2,"limited":11,"freeMinPct":84.59,"freeMaxPct":84.6709,"basis":"OWNER_CONFIRMED_GROUP_AGGREGATE","bidDataAvailable":true}'),
+ ('CNP','41043','2026-05-18','Resultado histórico — conforme planilha CNP','CNP · Histórico de assembleias (planilha entregue pela ALVO, importada no Drive)','https://docs.google.com/spreadsheets/d/1RfvmP0s_T4SvSJSAQ3BBDdtZx2Y1qvPtCR4j1UAWe-M/edit',null,
+  '{"number":57,"draw":1,"bid":14,"free":13,"fixed":1,"freeOffers":224,"fixedOffers":399,"drawCancelled":1,"basis":"CNP_SPREADSHEET_GROUP_AGGREGATE","bidDataAvailable":true}'),
+ ('CNP','41043','2026-06-15','Resultado histórico — conforme planilha CNP','CNP · Histórico de assembleias (planilha entregue pela ALVO, importada no Drive)','https://docs.google.com/spreadsheets/d/1RfvmP0s_T4SvSJSAQ3BBDdtZx2Y1qvPtCR4j1UAWe-M/edit',null,
+  '{"number":58,"draw":1,"bid":9,"free":8,"fixed":1,"freeOffers":169,"fixedOffers":370,"drawCancelled":1,"basis":"CNP_SPREADSHEET_GROUP_AGGREGATE","bidDataAvailable":true}'),
+ ('CNP','41043','2026-07-20','Resultado histórico — conforme planilha CNP','CNP · Histórico de assembleias (planilha entregue pela ALVO, importada no Drive)','https://docs.google.com/spreadsheets/d/1RfvmP0s_T4SvSJSAQ3BBDdtZx2Y1qvPtCR4j1UAWe-M/edit',null,
+  '{"number":59,"draw":1,"bid":9,"free":8,"fixed":1,"freeOffers":235,"fixedOffers":421,"drawCancelled":1,"basis":"CNP_SPREADSHEET_GROUP_AGGREGATE","bidDataAvailable":true}'),
+ ('CNP','41043','2026-08-17','Resultado histórico — conforme planilha CNP','CNP · Histórico de assembleias (planilha entregue pela ALVO, importada no Drive)','https://docs.google.com/spreadsheets/d/1RfvmP0s_T4SvSJSAQ3BBDdtZx2Y1qvPtCR4j1UAWe-M/edit',null,
+  '{"number":60,"draw":1,"bid":14,"free":13,"fixed":1,"freeOffers":238,"fixedOffers":459,"drawCancelled":1,"basis":"CNP_SPREADSHEET_GROUP_AGGREGATE","bidDataAvailable":true}'),
+ ('CNP','41043','2026-09-21','Resultado histórico — conforme planilha CNP','CNP · Histórico de assembleias (planilha entregue pela ALVO, importada no Drive)','https://docs.google.com/spreadsheets/d/1RfvmP0s_T4SvSJSAQ3BBDdtZx2Y1qvPtCR4j1UAWe-M/edit',null,
+  '{"number":61,"draw":1,"bid":11,"free":10,"fixed":1,"freeOffers":262,"fixedOffers":484,"drawCancelled":1,"basis":"CNP_SPREADSHEET_GROUP_AGGREGATE","bidDataAvailable":true}'),
+ ('CNP','41043','2026-10-19','Resultado histórico — conforme planilha CNP','CNP · Histórico de assembleias (planilha entregue pela ALVO, importada no Drive)','https://docs.google.com/spreadsheets/d/1RfvmP0s_T4SvSJSAQ3BBDdtZx2Y1qvPtCR4j1UAWe-M/edit',null,
+  '{"number":62,"draw":1,"bid":11,"free":10,"fixed":1,"freeOffers":280,"fixedOffers":500,"drawCancelled":1,"basis":"CNP_SPREADSHEET_GROUP_AGGREGATE","bidDataAvailable":true}'),
+ ('CNP','41056','2026-09-21','Resultado histórico — conforme planilha CNP','CNP · Histórico de assembleias (planilha entregue pela ALVO, importada no Drive)','https://docs.google.com/spreadsheets/d/1RfvmP0s_T4SvSJSAQ3BBDdtZx2Y1qvPtCR4j1UAWe-M/edit',null,
+  '{"number":1,"draw":1,"bid":0,"free":0,"fixed":0,"freeOffers":16,"fixedOffers":236,"drawCancelled":0,"basis":"CNP_SPREADSHEET_GROUP_AGGREGATE","bidDataAvailable":true}'),
+ ('CNP','41056','2026-10-19','Resultado histórico — conforme planilha CNP','CNP · Histórico de assembleias (planilha entregue pela ALVO, importada no Drive)','https://docs.google.com/spreadsheets/d/1RfvmP0s_T4SvSJSAQ3BBDdtZx2Y1qvPtCR4j1UAWe-M/edit',null,
+  '{"number":2,"draw":1,"bid":0,"free":0,"fixed":0,"freeOffers":87,"fixedOffers":686,"drawCancelled":1,"basis":"CNP_SPREADSHEET_GROUP_AGGREGATE","bidDataAvailable":true}'),
+ ('Servopa','1575','2026-08-20','Resultado histórico recebido — conforme planilha Servopa','Servopa — planilha de resultados enviada pela ALVO','https://docs.google.com/spreadsheets/d/1TKiEyBbO6jgUg-l5OY46OGUdGY8r3jThVbL0lo4Upqo/edit',null,
+  '{"number":3,"draw":3,"totalContemplated":3,"basis":"SERVOPA_SPREADSHEET_GROUP_AGGREGATE","bidDataAvailable":false}'),
+ ('Servopa','1575','2026-09-21','Resultado histórico recebido — conforme planilha Servopa','Servopa — planilha de resultados enviada pela ALVO','https://docs.google.com/spreadsheets/d/1TKiEyBbO6jgUg-l5OY46OGUdGY8r3jThVbL0lo4Upqo/edit',null,
+  '{"number":4,"draw":3,"totalContemplated":3,"basis":"SERVOPA_SPREADSHEET_GROUP_AGGREGATE","bidDataAvailable":false}'),
+ ('Servopa','1575','2026-10-22','Resultado histórico recebido — conforme planilha Servopa','Servopa — planilha de resultados enviada pela ALVO','https://docs.google.com/spreadsheets/d/1TKiEyBbO6jgUg-l5OY46OGUdGY8r3jThVbL0lo4Upqo/edit',null,
+  '{"number":5,"draw":3,"totalContemplated":3,"basis":"SERVOPA_SPREADSHEET_GROUP_AGGREGATE","bidDataAvailable":false}'),
+ ('Servopa','1577','2026-08-20','Resultado histórico recebido — conforme planilha Servopa','Servopa — planilha de resultados enviada pela ALVO','https://docs.google.com/spreadsheets/d/1TKiEyBbO6jgUg-l5OY46OGUdGY8r3jThVbL0lo4Upqo/edit',null,
+  '{"number":1,"draw":3,"totalContemplated":3,"basis":"SERVOPA_SPREADSHEET_GROUP_AGGREGATE","bidDataAvailable":false}'),
+ ('Servopa','1577','2026-09-21','Resultado histórico recebido — conforme planilha Servopa','Servopa — planilha de resultados enviada pela ALVO','https://docs.google.com/spreadsheets/d/1TKiEyBbO6jgUg-l5OY46OGUdGY8r3jThVbL0lo4Upqo/edit',null,
+  '{"number":2,"draw":4,"totalContemplated":4,"basis":"SERVOPA_SPREADSHEET_GROUP_AGGREGATE","bidDataAvailable":false}'),
+ ('Servopa','1577','2026-10-22','Resultado histórico recebido — conforme planilha Servopa','Servopa — planilha de resultados enviada pela ALVO','https://docs.google.com/spreadsheets/d/1TKiEyBbO6jgUg-l5OY46OGUdGY8r3jThVbL0lo4Upqo/edit',null,
+  '{"number":3,"draw":5,"totalContemplated":5,"basis":"SERVOPA_SPREADSHEET_GROUP_AGGREGATE","bidDataAvailable":false}')
+) v(adm, grp, d, st, src, ref, scope, x)
+ON CONFLICT (organization_id, adm, grp, held_on) WHERE origin = 'historico-app' DO NOTHING;
