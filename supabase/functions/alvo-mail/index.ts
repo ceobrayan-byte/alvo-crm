@@ -148,7 +148,7 @@ Deno.serve(async (req) => {
       if (input.caseId) { const aud = await user.rpc('crm_mail_audience', {p_org: org}); const c = (aud.data?.clients || []).find((x: any) => x.case_id === input.caseId);
         if (c) r = {name: c.name, email: c.email, administrator: c.adm || '—', group: c.grp || '—', quota: c.quota || '—', eventDate: input.eventDate || undefined}; }
       const asmPrev: Assembly | undefined = kind === 'assembly-feedback' ? (input.assembly || {held_on: '2026-11-25', adm: 'CNP', grp: '41056', draw_quotas: ['1514', '2187'], bids: [{quota: '4136', pct: 35.5}, {quota: '2728', pct: 32}], min_bid: 32, max_bid: 35.5, summary: 'Resumo oficial enviado pela administradora.', mine: []}) : undefined;
-      const m = journeyEmail(kind, r, typeof input.body === 'string' ? input.body.slice(0, 1800) : '', '#', kind === 'campaign' ? campaignOf(input.campaign) : undefined, asmPrev);
+      const m = journeyEmail(kind, r, typeof input.body === 'string' ? input.body.slice(0, 1800) : '', '#', (kind === 'campaign' || kind === 'comunicado') ? campaignOf(input.campaign) : undefined, asmPrev);
       return json({subject: m.subject, html: m.html});
     }
     if (!RESEND()) throw new Error('Envio bloqueado: falta cadastrar a chave do Resend no Supabase (segredo RESEND_API_KEY).');
@@ -190,20 +190,22 @@ Deno.serve(async (req) => {
         const kind = String(input.template) as Kind, model = catalog.find(x => x.id === kind);
         if (!model) throw new Error('Escolha um modelo.');
         const ids: string[] = Array.isArray(input.caseIds) ? input.caseIds.map(String) : [];
-        if (!ids.length || ids.length > 100) throw new Error('Selecione entre 1 e 100 clientes.');
+        if (!ids.length || ids.length > 1000) throw new Error('Selecione entre 1 e 1.000 clientes.');
         const body = typeof input.body === 'string' ? input.body.trim().slice(0, 1800) : '';
         const ref = String(input.reference || '').trim();
         if (model.needsRef && ref.length < 8) throw new Error('Informe a evidência ou regra (mín. 8 caracteres) para este modelo.');
         const eventDate = /^20\d{2}-\d\d-\d\d$/.test(input.eventDate || '') ? input.eventDate : undefined;
-        const camp = kind === 'campaign' ? campaignOf(input.campaign) : undefined;
-        if (camp && (camp.headline || '').trim().length < 5) throw new Error('Informe o título da campanha (mín. 5 caracteres).');
+        const camp = (kind === 'campaign' || kind === 'comunicado') ? campaignOf(input.campaign) : undefined;
+        if (camp && (camp.headline || '').trim().length < 5) throw new Error('Informe o título (mín. 5 caracteres).');
+        if (kind === 'comunicado' && body.length < 10) throw new Error('Escreva a mensagem do comunicado (mín. 10 caracteres).');
         if ((kind.startsWith('payment') || kind.startsWith('assembly')) && !eventDate) throw new Error('Informe a data real do vencimento/assembleia.');
         const seen = new Set<string>();
         for (const c of (aud.data.clients as any[]).filter(c => ids.includes(c.case_id))) {
-          if (!okEmail(c.email) || seen.has(c.email + c.case_id)) { skipped++; continue; }
+          const sk = (kind === 'comunicado' || model.promotional) ? c.email : c.email + c.case_id;
+          if (!okEmail(c.email) || seen.has(sk)) { skipped++; continue; }
           if (model.promotional && (!c.marketing_ok || c.opt_out)) { skipped++; continue; }
-          if (kind === 'birthday' && c.opt_out) { skipped++; continue; }
-          seen.add(c.email + c.case_id);
+          if ((kind === 'birthday' || kind === 'comunicado') && c.opt_out) { skipped++; continue; }
+          seen.add(sk);
           let unsub: string | undefined;
           if (model.promotional && c.client_id) {
             const {data: cl} = await admin.from('clients').select('metadata').eq('id', c.client_id).single();
@@ -221,7 +223,7 @@ Deno.serve(async (req) => {
         if (subject.length < 5 || subject.length > 150 || /[\r\n]/.test(subject)) throw new Error('O assunto deve ter entre 5 e 150 caracteres.');
         if (body.length < 3 || body.length > 6000) throw new Error('A mensagem deve ter entre 3 e 6.000 caracteres.');
         const ids: string[] = Array.isArray(input.userIds) ? input.userIds.map(String) : [];
-        if (!ids.length || ids.length > 100) throw new Error('Selecione entre 1 e 100 pessoas.');
+        if (!ids.length || ids.length > 300) throw new Error('Selecione entre 1 e 300 pessoas.');
         for (const u of (aud.data.team as any[]).filter(u => ids.includes(u.id))) {
           if (!okEmail(u.email)) { skipped++; continue; }
           const m = noticeEmail(u.name, category, subject, body);
@@ -235,20 +237,24 @@ Deno.serve(async (req) => {
       const ins = await admin.from('mail_log').insert(rows).select('id');
       if (ins.error) throw ins.error;
       const logIds = ins.data.map((r: any) => r.id);
-      let sent = 0;
-      try {
-        const res = await resend('/emails/batch', {method: 'POST', headers: {'Idempotency-Key': 'alvo-' + logIds[0]}, body: JSON.stringify(out.map(o => ({from: FROM, to: [o.to], subject: o.subject, html: o.html, text: o.text, ...(o.headers ? {headers: o.headers} : {})})))});
-        const data = Array.isArray(res?.data) ? res.data : [];
-        for (let i = 0; i < logIds.length; i++) {
-          const id = data[i]?.id;
-          await admin.from('mail_log').update(id ? {status: 'enviado', provider_id: id, updated_at: new Date().toISOString()} : {status: 'incerto', error: 'Resend não confirmou esta mensagem', updated_at: new Date().toISOString()}).eq('id', logIds[i]);
-          if (id) sent++;
+      let sent = 0, failed = 0, lastErr = '';
+      for (let i0 = 0; i0 < out.length; i0 += 100) {
+        const part = out.slice(i0, i0 + 100), pids = logIds.slice(i0, i0 + 100);
+        try {
+          const res = await resend('/emails/batch', {method: 'POST', headers: {'Idempotency-Key': 'alvo-' + pids[0]}, body: JSON.stringify(part.map(o => ({from: FROM, to: [o.to], subject: o.subject, html: o.html, text: o.text, ...(o.headers ? {headers: o.headers} : {})})))});
+          const data = Array.isArray(res?.data) ? res.data : [];
+          for (let i = 0; i < pids.length; i++) {
+            const id = data[i]?.id;
+            await admin.from('mail_log').update(id ? {status: 'enviado', provider_id: id, updated_at: new Date().toISOString()} : {status: 'incerto', error: 'Resend não confirmou esta mensagem', updated_at: new Date().toISOString()}).eq('id', pids[i]);
+            if (id) sent++;
+          }
+        } catch (e) {
+          const msg = (e as Error).message, sure = /^Resend 4\d\d/.test(msg); lastErr = msg; failed += pids.length;
+          await admin.from('mail_log').update({status: sure ? 'falhou' : 'incerto', error: msg, updated_at: new Date().toISOString()}).in('id', pids);
         }
-      } catch (e) {
-        const msg = (e as Error).message, sure = /^Resend 4\d\d/.test(msg);
-        await admin.from('mail_log').update({status: sure ? 'falhou' : 'incerto', error: msg, updated_at: new Date().toISOString()}).in('id', logIds);
-        throw new Error(sure ? msg : 'Resposta do Resend não confirmada. Confira no painel do Resend antes de reenviar.');
       }
+      if (!sent && failed) throw new Error(/^Resend 4\d\d/.test(lastErr) ? lastErr : 'Resposta do Resend não confirmada. Confira no painel do Resend antes de reenviar.');
+      if (failed) skipped += failed;
       return json({ok: true, sent, skipped, message: sent + ' e-mail(s) enviado(s)' + (skipped ? '; ' + skipped + ' sem e-mail válido ou sem autorização' : '') + '.'});
     }
 

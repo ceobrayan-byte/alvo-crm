@@ -1,11 +1,12 @@
 // Modelos de e-mail da ALVO · identidade visual (verde-profundo + dourado + marfim), logo, faixa da jornada e botão de ação.
 // Textos-base vindos do Floot (helpers/journeyEmailTemplates.tsx e sellerNoticeTemplates.tsx). Nunca presumir contemplação, quitação ou atraso.
 // HTML em tabelas e estilos inline (Gmail, Outlook e celular).
-export type Kind = 'payment-reminder'|'payment-last-day'|'assembly-today'|'assembly-feedback'|'birthday'|'news'|'overdue-one'|'overdue-two'|'pre-cancel'|'cancelled'|'churn'|'referral'|'campaign';
+export type Kind = 'payment-reminder'|'payment-last-day'|'assembly-today'|'assembly-feedback'|'birthday'|'news'|'overdue-one'|'overdue-two'|'pre-cancel'|'cancelled'|'churn'|'referral'|'campaign'|'comunicado';
 type Model = {id: Kind; title: string; trigger: string; promotional?: boolean; needsRef?: boolean; subject: string; body: string;
   icon: string; eyebrow: string; step?: number; quote: string; cta?: 'boleto'|'suporte'|'indicar'|'none'};
 export const catalog: Model[] = [
  {id:'campaign',title:'Disparo / campanha',trigger:'Campanhas e ofertas para a base autorizada',promotional:true,icon:'✨',eyebrow:'CONDIÇÃO ESPECIAL ALVO',subject:'Uma oportunidade pensada para o seu próximo passo.',body:'Preparamos uma condição especial para quem quer acelerar a conquista do próximo patrimônio.',quote:'Grandes conquistas começam com uma decisão.',cta:'suporte'},
+ {id:'comunicado',title:'Comunicado aos clientes',trigger:'Aviso informativo para toda a carteira ativa',icon:'📣',eyebrow:'COMUNICADO ALVO',subject:'Um comunicado importante da ALVO para você.',body:'Queremos compartilhar uma informação importante sobre o seu consórcio e o atendimento da ALVO.',quote:'Transparência e proximidade em cada etapa da sua jornada.',cta:'suporte'},
  {id:'payment-reminder',title:'Lembrete de pagamento',trigger:'Antes do vencimento confirmado',icon:'📅',eyebrow:'LEMBRETE DE PARCELA',step:1,subject:'Seu sonho merece esse compromisso.',body:'A data de sua próxima parcela está chegando. Cada compromisso cumprido é mais um passo em direção ao seu patrimônio. Estamos aqui para acompanhar você.',quote:'Constância é o que transforma planos em patrimônio.',cta:'boleto'},
  {id:'payment-last-day',title:'Último dia para pagamento',trigger:'Dia do vencimento confirmado',icon:'⏰',eyebrow:'SUA PARCELA VENCE HOJE',step:1,subject:'Seu sonho merece atenção. Hoje é o dia do seu compromisso.',body:'Hoje é o dia do vencimento da sua parcela. Se você já realizou o pagamento, por favor, desconsidere esta mensagem. Nosso compromisso é ajudar você a não perder uma data importante, porque levamos seus projetos tão a sério quanto você.',quote:'Cada parcela em dia mantém sua cota pronta para a contemplação.',cta:'boleto'},
  {id:'assembly-today',title:'Assembleia é HOJE',trigger:'Dia oficial da assembleia',icon:'🎯',eyebrow:'DIA DE ASSEMBLEIA',step:2,subject:'É hoje! Mais uma etapa da sua jornada.',body:'Hoje acontece a assembleia do seu grupo. A ALVO acompanhará os resultados oficiais para manter você informado sobre cada etapa do seu planejamento.',quote:'Quem se mantém no jogo está sempre perto da próxima conquista.',cta:'suporte'},
@@ -111,11 +112,12 @@ export function journeyEmail(kind: Kind, r: Recipient, customBody?: string, unsu
     content += '<div style="margin:28px 0 4px">'+button((camp?.ctaLabel || '').trim() || 'Quero saber mais', url || 'mailto:suporte@alvoinvestimentos.com?subject='+encodeURIComponent('Interesse: '+title))+'</div>';
     content += quote(model.quote);
   } else {
+    if (kind === 'comunicado') { const h = (camp?.headline || '').trim(); if (h) { title = h; subject = h; } subtitle = (camp?.subtitle || '').trim() || undefined; }
     if (model.step != null) content += journey(model.step);
     const f: [string,string][] = [['Administradora',esc(r.administrator)],['Grupo',esc(r.group)],['Cota',esc(r.quota)]];
     if (r.eventDate && kind.startsWith('payment')) f.push(['Vencimento', dateBr(r.eventDate)]);
     if (r.eventDate && kind.startsWith('assembly')) f.push(['Assembleia', dateBr(r.eventDate)]);
-    if (kind !== 'birthday') content += facts(f);
+    if (kind !== 'birthday' && kind !== 'comunicado') content += facts(f);
     if (asm) content += assemblyBlock(asm);
     if (kind === 'payment-last-day') content += '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:18px 0 0"><tr><td style="background:#FBF6EA;border:1px solid #EFDDB7;border-radius:12px;padding:14px 16px;'+F+';font-size:13.5px;line-height:1.6;color:'+C.ink2+'"><b style="color:'+C.green+'">Um lembrete com responsabilidade:</b> caso já tenha pago, desconsidere este aviso. Não se trata de confirmação de inadimplência.</td></tr></table>';
     if (model.cta !== 'none') {
