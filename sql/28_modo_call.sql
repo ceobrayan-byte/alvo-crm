@@ -1,0 +1,6 @@
+-- 28: Modo call (21/11/2026)
+-- lead_calls: histórico das calls (Call 1 / Call 2) com respostas do roteiro, resultado, duração e próxima call.
+-- crm_lead_calls(p_org,p_lead): histórico na ficha do lead.
+-- crm_call_save(p_org,p_lead,p_data): grava a call, atualiza sonho/valor/capacidade/último contato do lead,
+--   move a etapa conforme o resultado (simulação → Simulação recebida; call2 → Call 2; fechou/fechamento → Fechamento;
+--   noshow → No-show / Follow-up Call 1 ou Segundo no-show; geladeira → Geladeira) e cria a tarefa da próxima call.

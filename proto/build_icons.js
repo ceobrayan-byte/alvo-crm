@@ -5,7 +5,7 @@ const L=require(path.resolve(process.argv[2]));
 const P=s=>s.replace(/(\w)(\w*)(_|-|\s*)/g,(a,b,c)=>b.toUpperCase()+c.toLowerCase());
 const src=fs.readdirSync(path.join(__dirname,'src')).filter(f=>f.endsWith('.js')).map(f=>fs.readFileSync(path.join(__dirname,'src',f),'utf8')).join('\n');
 const used={};
-for(const m of src.matchAll(/['"`,]([a-z][a-z0-9-]*[a-z0-9])(?=['"`,])/g)){const k=P(m[1]);if(L.icons[k])used[k]=L.icons[k][2]}
+for(const m of src.matchAll(/['"`,]([a-z](?:[a-z0-9-]*[a-z0-9])?)(?=['"`,])/g)){const k=P(m[1]);if(L.icons[k])used[k]=L.icons[k][2]}
 const js=`/* Lucide ${'0.460.0'} (ISC) · subconjunto gerado por proto/build_icons.js · ${Object.keys(used).length} ícones */
 (function(){var I=${JSON.stringify(used)};
 var D={xmlns:"http://www.w3.org/2000/svg",width:24,height:24,viewBox:"0 0 24 24",fill:"none",stroke:"currentColor","stroke-width":2,"stroke-linecap":"round","stroke-linejoin":"round"};
