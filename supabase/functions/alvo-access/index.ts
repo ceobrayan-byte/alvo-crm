@@ -40,12 +40,24 @@ function accessEmail(name: string, email: string, pw: string) {
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', {headers: cors});
   if (req.method !== 'POST') return json({error: 'Método não suportado'}, 405);
-  const user = createClient(URL_, ANON, {global: {headers: {Authorization: req.headers.get('Authorization') || ''}}, auth: {persistSession: false}});
   let input: any; try { input = await req.json(); } catch { return json({error: 'Requisição inválida'}, 400); }
   const org = String(input.org || ''), uid = String(input.user_id || '');
-  const t = await user.rpc('crm_access_target', {p_org: org, p_user: uid});
-  if (t.error) return json({error: t.error.message}, 403);
-  const target = t.data as {id: string; name: string; email: string; auth_user_id: string | null};
+  // chamada interna (rotina do banco, autenticada pelo segredo do cofre): envia acesso sem devolver a senha
+  const internal = !!req.headers.get('x-cron-secret');
+  let target: {id: string; name: string; email: string; auth_user_id: string | null};
+  if (internal) {
+    const {data: sec} = await admin.rpc('mail_cron_secret');
+    if (!sec || req.headers.get('x-cron-secret') !== sec) return json({error: 'negado'}, 403);
+    const {data: r} = await admin.from('users').select('id,display_name,corporate_email,auth_user_id,memberships!inner(status,role_key,organization_id)').eq('id', uid).eq('memberships.organization_id', org).maybeSingle();
+    const m = (r as any)?.memberships?.[0];
+    if (!r || !m || m.status !== 'ATIVO' || m.role_key === 'PROPRIETARIO' || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(r.corporate_email || '')) return json({error: 'Pessoa inválida para envio'}, 400);
+    target = {id: r.id, name: r.display_name, email: r.corporate_email, auth_user_id: r.auth_user_id};
+  } else {
+    const user = createClient(URL_, ANON, {global: {headers: {Authorization: req.headers.get('Authorization') || ''}}, auth: {persistSession: false}});
+    const t = await user.rpc('crm_access_target', {p_org: org, p_user: uid});
+    if (t.error) return json({error: t.error.message}, 403);
+    target = t.data as {id: string; name: string; email: string; auth_user_id: string | null};
+  }
   const email = target.email.trim().toLowerCase(), pw = tempPassword();
   try {
     let authId = target.auth_user_id;
@@ -81,10 +93,10 @@ Deno.serve(async (req) => {
         const p = await r.json().catch(() => ({}));
         sent = r.ok; if (!r.ok) mailError = 'Resend ' + r.status + ': ' + (p?.message || 'erro');
         await admin.from('mail_log').insert({organization_id: org, kind: 'aviso', template: 'acesso', ref_id: target.id, to_name: target.name, to_email: email,
-          subject: 'Seu acesso ao CRM ALVO', body: 'Acesso enviado (senha provisória não registrada)', status: r.ok ? 'enviado' : 'falhou', provider_id: p?.id || null, error: mailError, sent_by: 'Equipe e permissões'});
+          subject: 'Seu acesso ao CRM ALVO', body: 'Acesso enviado (senha provisória não registrada)', status: r.ok ? 'enviado' : 'falhou', provider_id: p?.id || null, error: mailError, sent_by: internal ? 'Migração do Floot' : 'Equipe e permissões'});
       } else mailError = 'Chave do Resend não configurada';
     }
-    return json({ok: true, email, password: pw, sent, mailError, url: APP});
+    return json(internal ? {ok: true, email, sent, mailError} : {ok: true, email, password: pw, sent, mailError, url: APP});
   } catch (e) {
     return json({error: (e as Error).message || 'Falha ao criar o acesso'}, 400);
   }
