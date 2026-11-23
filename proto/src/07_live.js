@@ -91,7 +91,7 @@ function authShell(inner){$('#app').innerHTML=`<div class="auth"><div class="aut
 function authErr(m,ok){const e=$('#aerr');if(e){e.className=ok?'ok':'err';e.textContent=m||''}}
 function authMsg(e){
   const m=(e&&e.message)||String(e);
-  if(/Invalid login credentials/i.test(m))return'E-mail ou senha incorretos. A senha do sistema antigo não vale aqui: use a senha provisória que a ALVO enviou para o seu e-mail (assunto "Seu acesso ao CRM ALVO") ou peça um novo acesso ao gestor.';
+  if(/Invalid login credentials/i.test(m))return'E-mail ou senha incorretos. A senha do sistema antigo não vale aqui: use a senha provisória que a ALVO enviou para o seu e-mail (assunto "Seu acesso ao CRM ALVO") ou clique em "Esqueci minha senha" para receber uma nova na hora.';
   if(/Email not confirmed/i.test(m))return'Confirme seu e-mail pelo link que enviamos antes de entrar.';
   if(/already registered|already been registered/i.test(m))return'Este e-mail já tem conta. Use Entrar.';
   if(/Password should be|at least/i.test(m))return'A senha precisa ter pelo menos 8 caracteres.';
@@ -118,7 +118,7 @@ function showLogin(msg,mode){
   const fg=$('#forgot');
   if(fg)fg.onclick=async()=>{
     const em=f.email.value.trim();if(!em)return authErr('Digite seu e-mail e clique de novo.');
-    try{const{error}=await sb.auth.resetPasswordForEmail(em,{redirectTo:location.origin+location.pathname});if(error)throw error;authErr('Se o e-mail existir, enviamos o link para criar uma nova senha.',true)}catch(e){authErr(authMsg(e))}
+    fg.disabled=true;try{const r=await fnCall('alvo-access',{action:'forgot',email:em});authErr((r&&r.message)||'Se o e-mail estiver cadastrado, enviamos uma senha provisória. Confira também o spam.',true)}catch(e){authErr(authMsg(e))}finally{fg.disabled=false}
   };
   f.onsubmit=async ev=>{
     ev.preventDefault();const em=f.email.value.trim(),pw=f.pw.value;
