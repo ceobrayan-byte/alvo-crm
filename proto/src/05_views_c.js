@@ -133,8 +133,8 @@ function eqUsers(){
 function eqInvites(){
   const o=O();
   return`<div class="tbl-wrap"><table class="tbl" style="min-width:680px"><thead><tr><th>E-mail</th><th>Perfil</th><th>Equipe</th><th>Enviado</th><th>Status</th><th></th></tr></thead><tbody>${o.invites.map(i=>`<tr><td><b>${esc(i.email)}</b></td><td>${bd(i.role,roleTone(i.role))}</td><td class="sm">${esc(i.team)}</td><td class="sm muted">${rel(i.sent)}</td><td>${bd(i.status,i.status==='Pendente'?'warn':'mute')}</td>
-   <td><div class="row" style="justify-content:flex-end;gap:6px"><button class="btn sm" data-act="inv-resend" data-id="${i.id}">${ic('send')}Reenviar</button><button class="ibtn" style="width:30px;height:30px" data-act="inv-copy" data-id="${i.id}" aria-label="Copiar link do convite">${ic('copy')}</button><button class="ibtn" style="width:30px;height:30px" data-act="inv-del" data-id="${i.id}" aria-label="Revogar convite">${ic('trash-2')}</button></div></td></tr>`).join('')||`<tr><td colspan="6" class="empty">Nenhum convite enviado.</td></tr>`}</tbody></table></div>
-   <p class="sm muted">Convites expiram em 7 dias. A pessoa define a própria senha ao aceitar e entra com o perfil escolhido aqui.</p>`;
+   <td><div class="row" style="justify-content:flex-end;gap:6px"><button class="btn sm" data-act="inv-resend" data-id="${i.id}">${ic('key-round')}Liberar acesso</button><button class="ibtn" style="width:30px;height:30px" data-act="inv-copy" data-id="${i.id}" aria-label="Copiar link do convite">${ic('copy')}</button><button class="ibtn" style="width:30px;height:30px" data-act="inv-del" data-id="${i.id}" aria-label="Revogar convite">${ic('trash-2')}</button></div></td></tr>`).join('')||`<tr><td colspan="6" class="empty">Nenhum convite enviado.</td></tr>`}</tbody></table></div>
+   <p class="sm muted">Convites antigos: clique em <b>Liberar acesso</b>, informe o nome e a pessoa recebe por e-mail o link do CRM e uma senha provisória.</p>`;
 }
 function eqPerms(){
   const o=O(),can=LV('equipe')>=3;

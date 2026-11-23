@@ -453,6 +453,27 @@ ACT['u-del']=async el=>{const u=user(el.dataset.id);
   const ok=await guarded(async()=>{await rpc('crm_member_edit',{p_org:S.orgId,p_user:u.id,p_data:{action:'remove'}});await reload()});
   if(ok){toast(`${esc(fname(u.name))} excluído(a) da equipe`,{icon:'trash-2'});closeAll()}};
 
+/* convidar usuário = criar a pessoa na equipe e mandar a senha provisória por e-mail (sem link de convite) */
+function invDialog(pre){const o=O();pre=pre||{};
+  dialog({title:pre.email?'Liberar acesso do convite':'Convidar usuário',sub:pre.email?esc(pre.email):`${seatsFree()} assentos livres`,submit:'Criar e enviar acesso',body:`
+   <div class="g" style="grid-template-columns:1fr 1fr;gap:12px"><label class="fld">Nome<input class="in" name="name" required maxlength="120" placeholder="Nome e sobrenome"></label>
+   <label class="fld">E-mail<input class="in" type="email" name="email" required value="${esc(pre.email||'')}" placeholder="pessoa@gmail.com"></label></div>
+   <div class="g" style="grid-template-columns:1fr 1fr;gap:12px"><label class="fld">Perfil<select class="in" name="role">${ROLES.filter(r=>r!=='Proprietário').map(r=>`<option ${r===(pre.role||'Vendedor')?'selected':''}>${r}</option>`).join('')}</select></label>
+   <label class="fld">Equipe<select class="in" name="team"><option value="">Sem equipe</option>${(o.teams||[]).map(t=>`<option value="${t.id}" ${t.name===pre.team?'selected':''}>${esc(t.name)}</option>`).join('')}</select></label></div>
+   <p class="sm muted">A pessoa entra na equipe na hora e recebe por e-mail o link do CRM e uma senha provisória. No primeiro acesso ela cria a senha dela.</p>`,
+   onSubmit:dlgAsync(async f=>{
+     if(PV.on)throw Object.assign(new Error('Modo "Ver como": nada é criado.'),{code:'PV'});
+     const uid=await rpc('crm_member_create',{p_org:S.orgId,p_name:f.name,p_email:f.email,p_role_key:RKI[f.role],p_team_id:f.team||null});
+     const r=await fnCall('alvo-access',{org:S.orgId,user_id:uid,send_email:true});
+     await reload();S.v.eqtab='usuarios';refresh();
+     LS.after=()=>uAccessShow({name:f.name},r);
+   })});
+}
+ACT.invite=()=>{if(seatsFree()<=0)return dialog({title:'Assentos esgotados',sub:'Convidar usuário',submit:'Entendi',body:`<p class="sm">A organização usa todos os ${O().seats} assentos do plano.</p>`});invDialog()};
+ACT['inv-resend']=el=>{const i=(O().invites||[]).find(x=>x.id===el.dataset.id);if(i)invDialog({email:i.email,role:i.role,team:i.team})};
+ACT['inv-copy']=ACT['inv-resend'];
+ACT['inv-del']=async el=>{const i=(O().invites||[]).find(x=>x.id===el.dataset.id);if(!i||!confirm(`Cancelar o convite de ${i.email}?`))return;
+  const ok=await guarded(async()=>{await rpc('crm_invitation_revoke',{p_org:S.orgId,p_id:i.id});await reload()});if(ok){toast('Convite cancelado',{icon:'trash-2'});refresh()}};
 /* acesso ao CRM: senha provisória por e-mail (função alvo-access) */
 async function uAccess(u,quiet){if(PV.on)throw Object.assign(new Error('Modo "Ver como": nada é enviado.'),{code:'PV'});return fnCall('alvo-access',{org:S.orgId,user_id:u.id,send_email:true})}
 function uAccessShow(u,r){const msg=`Olá, ${fname(u.name)}! Seu acesso ao CRM ALVO:\n${r.url}\nE-mail: ${r.email}\nSenha provisória: ${r.password}\nNo primeiro acesso você cria sua senha definitiva.`;
