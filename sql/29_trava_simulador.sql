@@ -3,7 +3,8 @@
 -- Regra: um login do simulador só fica ativo se estiver ligado a uma pessoa ATIVA da equipe no CRM
 -- com "Simulador liberado" (memberships.simulator). O proprietário sempre tem acesso.
 -- * cadastro novo de quem não está liberado é recusado (a tela /cadastro deixa de abrir conta para estranhos);
--- * sessões de quem perde o acesso são encerradas na hora;
+-- * sessões de quem perde o acesso são expiradas na hora;
+-- Aplicado em 24/11/2026. Teste: cadastro de e-mail fora da equipe recusado com a mensagem de cadastro fechado.
 -- * reativar pelo painel do próprio simulador não funciona: o banco devolve para inativo.
 ALTER TABLE memberships ADD COLUMN IF NOT EXISTS simulator boolean NOT NULL DEFAULT false;
 ALTER TABLE seller_users ADD COLUMN IF NOT EXISTS crm_user_id text REFERENCES users(id) ON DELETE SET NULL;
@@ -46,7 +47,7 @@ DECLARE n_off int; n_kill int;
 BEGIN
   UPDATE seller_users SET updated_at=updated_at;  -- dispara o gatilho (vínculo + ativo)
   SELECT count(*) INTO n_off FROM seller_users WHERE NOT active;
-  DELETE FROM seller_sessions z USING seller_users s WHERE s.id=z.user_id AND NOT s.active;
+  UPDATE seller_sessions z SET expires_at=now()-interval '1 second' FROM seller_users s WHERE s.id=z.user_id AND NOT s.active AND z.expires_at>now();
   GET DIAGNOSTICS n_kill = ROW_COUNT;
   RETURN jsonb_build_object('bloqueados',n_off,'sessoes_encerradas',n_kill);
 END $$;
