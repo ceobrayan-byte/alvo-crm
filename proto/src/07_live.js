@@ -118,7 +118,7 @@ function showLogin(msg,mode){
   const fg=$('#forgot');
   if(fg)fg.onclick=async()=>{
     const em=f.email.value.trim();if(!em)return authErr('Digite seu e-mail e clique de novo.');
-    fg.disabled=true;try{const r=await fnCall('alvo-access',{action:'forgot',email:em});authErr((r&&r.message)||'Se o e-mail estiver cadastrado, enviamos uma senha provisória. Confira também o spam.',true)}catch(e){authErr(authMsg(e))}finally{fg.disabled=false}
+    fg.disabled=true;try{const rs=await fetch(CFG.url+'/functions/v1/alvo-access',{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify({action:'forgot',email:em})});const r=await rs.json().catch(()=>null);if(!rs.ok)throw new Error((r&&r.error)||'Não foi possível enviar agora. Tente de novo em 1 minuto.');authErr((r&&r.message)||'Se o e-mail estiver cadastrado, enviamos uma senha provisória. Confira também o spam.',true)}catch(e){authErr(authMsg(e))}finally{fg.disabled=false}
   };
   f.onsubmit=async ev=>{
     ev.preventDefault();const em=f.email.value.trim(),pw=f.pw.value;

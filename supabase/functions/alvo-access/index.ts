@@ -7,7 +7,7 @@ const ANON = Deno.env.get('SUPABASE_ANON_KEY')!;
 const SERVICE = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 const APP = 'https://crm.alvoinvestimentos.com.br';
 const FROM = 'ALVO Investimentos <suporte@alvoinvestimentos.com>';
-const cors = {'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type', 'Access-Control-Allow-Methods': 'POST, OPTIONS'};
+const cors = {'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-api-version, x-region, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version, *', 'Access-Control-Allow-Methods': 'POST, OPTIONS', 'Access-Control-Max-Age': '86400'};
 const json = (b: unknown, s = 200) => new Response(JSON.stringify(b), {status: s, headers: {...cors, 'Content-Type': 'application/json'}});
 const admin = createClient(URL_, SERVICE, {auth: {persistSession: false}});
 const esc = (v: unknown) => String(v ?? '').replace(/[&<>"']/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c] || c));
@@ -38,7 +38,7 @@ function accessEmail(name: string, email: string, pw: string) {
 }
 
 Deno.serve(async (req) => {
-  if (req.method === 'OPTIONS') return new Response('ok', {headers: cors});
+  if (req.method === 'OPTIONS') return new Response('ok', {headers: {...cors, 'Access-Control-Allow-Headers': cors['Access-Control-Allow-Headers'] + (req.headers.get('access-control-request-headers') ? ', ' + req.headers.get('access-control-request-headers') : '')}});
   if (req.method !== 'POST') return json({error: 'Método não suportado'}, 405);
   let input: any; try { input = await req.json(); } catch { return json({error: 'Requisição inválida'}, 400); }
   let org = String(input.org || ''); const uid = String(input.user_id || '');
