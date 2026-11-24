@@ -1,0 +1,3 @@
+-- 31 · Promover vendedor a coordenador: ele ganha equipe própria ("Equipe <Nome>") em vez de herdar
+-- a equipe do coordenador antigo (antes, quem já estava numa equipe virava coordenador dessa mesma equipe).
+-- Aplicado em 24/11/2026 (crm_member_update recriada; ver definição no banco).
